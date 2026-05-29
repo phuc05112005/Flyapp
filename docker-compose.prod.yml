@@ -1,0 +1,16 @@
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  web:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  postgres:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
