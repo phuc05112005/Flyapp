@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DiscountType } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { MockAirlineProvider } from '../common/providers/mock-airline.provider';
 import { calculateMarkup, formatBookingCode, toNumber } from '../common/utils/money';
@@ -39,7 +40,11 @@ export class BookingsService {
       orderBy: { priority: 'desc' }
     });
     const markup = calculateMarkup(baseAmount, Number(rule?.percent ?? 0), toNumber(rule?.fixedVND ?? 0));
+    const discount = await this.calculatePromotionDiscount(dto.promotionCode, baseAmount + markup);
     const hold = await this.airlineProvider.holdSeats(dto.flightId, dto.passengers.length);
+    const user = dto.userId
+      ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
+      : await this.prisma.user.findUnique({ where: { email: dto.contactEmail } });
 
     return this.prisma.$transaction(async (tx) => {
       await tx.flightClass.update({
@@ -50,13 +55,15 @@ export class BookingsService {
       return tx.booking.create({
         data: {
           bookingCode: formatBookingCode(randomCode()),
+          userId: user?.id,
           flightId: dto.flightId,
           contactName: dto.contactName,
           contactEmail: dto.contactEmail,
           contactPhone: dto.contactPhone,
           baseAmountVND: baseAmount,
           markupVND: markup,
-          totalAmountVND: baseAmount + markup,
+          discountVND: discount.amount,
+          totalAmountVND: baseAmount + markup - discount.amount,
           providerPnr: hold.pnrCode,
           items: {
             create: dto.passengers.map((passenger) => ({
@@ -75,6 +82,15 @@ export class BookingsService {
           items: true,
           payment: true
         }
+      }).then(async (booking) => {
+        if (discount.promotionId) {
+          await tx.promotion.update({
+            where: { id: discount.promotionId },
+            data: { usageCount: { increment: 1 } }
+          });
+        }
+
+        return booking;
       });
     });
   }
@@ -100,5 +116,45 @@ export class BookingsService {
         payment: true
       }
     });
+  }
+
+  async listByCustomerEmail(email: string) {
+    return this.prisma.booking.findMany({
+      where: { contactEmail: email },
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        flight: { include: { airline: true, route: { include: { departure: true, arrival: true } } } },
+        items: true,
+        payment: true,
+        tickets: true
+      }
+    });
+  }
+
+  private async calculatePromotionDiscount(code: string | undefined, orderAmount: number) {
+    if (!code) return { amount: 0, promotionId: null as string | null };
+
+    const now = new Date();
+    const promotion = await this.prisma.promotion.findUnique({ where: { code: code.trim().toUpperCase() } });
+    if (!promotion || !promotion.isActive || promotion.startDate > now || promotion.endDate < now) {
+      throw new BadRequestException('Ma khuyen mai khong hop le hoac da het han.');
+    }
+    if (promotion.usageLimit && promotion.usageCount >= promotion.usageLimit) {
+      throw new BadRequestException('Ma khuyen mai da het luot su dung.');
+    }
+    if (promotion.minOrderVND && orderAmount < toNumber(promotion.minOrderVND)) {
+      throw new BadRequestException('Don hang chua dat gia tri toi thieu cua ma khuyen mai.');
+    }
+
+    const rawDiscount = promotion.discountType === DiscountType.PERCENTAGE
+      ? Math.round(orderAmount * (Number(promotion.discountValue) / 100))
+      : Number(promotion.discountValue);
+    const cappedDiscount = promotion.maxDiscountVND ? Math.min(rawDiscount, toNumber(promotion.maxDiscountVND)) : rawDiscount;
+
+    return {
+      amount: Math.max(0, Math.min(cappedDiscount, orderAmount)),
+      promotionId: promotion.id
+    };
   }
 }

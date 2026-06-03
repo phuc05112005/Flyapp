@@ -4,7 +4,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 text-sm text-slate-600 md:grid-cols-3">
         <div>
           <p className="font-semibold text-ink">VietFly Agency</p>
-          <p>Nền tảng bán vé máy bay cho đại lý Việt Nam.</p>
+          <p>Nền tảng đặt vé máy bay cho khách hàng và đại lý Việt Nam.</p>
         </div>
         <div>
           <p className="font-semibold text-ink">Hỗ trợ</p>
@@ -13,7 +13,7 @@ export function Footer() {
         </div>
         <div>
           <p className="font-semibold text-ink">Chính sách</p>
-          <p>Điều kiện vé, hoàn hủy, bảo mật thanh toán.</p>
+          <p>Điều kiện vé, hoàn hủy, bảo mật thanh toán và xuất vé điện tử.</p>
         </div>
       </div>
     </footer>

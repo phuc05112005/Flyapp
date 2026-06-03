@@ -43,3 +43,7 @@ cp apps/web/.env.example apps/web/.env.local
 ## Ghi chú tích hợp hãng bay thật
 
 Các hãng bay thường không mở API công khai đại trà. Muốn lấy giá và xuất vé chính xác theo thời gian thực, đại lý cần hợp đồng/API key hoặc thông qua GDS/NDC/aggregator. Code hiện tách `IAirlineProvider` để thay `MockAirlineProvider` bằng provider production mà không phá luồng đặt vé.
+
+docker compose up -d postgres redis
+npm run dev:api
+npm run dev:web

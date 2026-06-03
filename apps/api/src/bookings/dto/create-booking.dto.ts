@@ -22,6 +22,10 @@ export class BookingPassengerDto {
 }
 
 export class CreateBookingDto {
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
   @IsString()
   flightId!: string;
 

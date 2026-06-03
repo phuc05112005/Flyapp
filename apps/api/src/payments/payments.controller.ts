@@ -17,4 +17,9 @@ export class PaymentsController {
   status(@Param('bookingId') bookingId: string) {
     return this.paymentsService.status(bookingId);
   }
+
+  @Post(':bookingId/confirm')
+  confirm(@Param('bookingId') bookingId: string) {
+    return this.paymentsService.confirm(bookingId);
+  }
 }

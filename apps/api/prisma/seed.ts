@@ -105,6 +105,7 @@ async function resetDatabase() {
   await prisma.booking.deleteMany();
   await prisma.flightClass.deleteMany();
   await prisma.flight.deleteMany();
+  await prisma.agencyPaymentSetting.deleteMany();
   await prisma.agencyMarkupRule.deleteMany();
   await prisma.route.deleteMany();
   await prisma.airport.deleteMany();

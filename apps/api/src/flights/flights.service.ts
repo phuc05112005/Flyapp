@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ClassType } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { calculateMarkup, toNumber } from '../common/utils/money';
@@ -9,6 +9,10 @@ export class FlightsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async search(dto: SearchFlightsDto) {
+    if (dto.from.toUpperCase() === dto.to.toUpperCase()) {
+      throw new BadRequestException('Điểm đi và điểm đến không được trùng nhau.');
+    }
+
     const start = new Date(`${dto.date}T00:00:00.000Z`);
     const end = new Date(`${dto.date}T23:59:59.999Z`);
     const passengerCount = dto.adults + dto.children + dto.infants;

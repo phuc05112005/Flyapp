@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -19,7 +19,8 @@ export class BookingsController {
   }
 
   @Get()
-  recent() {
+  recent(@Query('email') email?: string) {
+    if (email) return this.bookingsService.listByCustomerEmail(email);
     return this.bookingsService.listRecent();
   }
 }

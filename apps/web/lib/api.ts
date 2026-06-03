@@ -28,7 +28,10 @@ export type FlightResult = {
 
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${getApiUrl()}${path}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Không thể tải dữ liệu từ hệ thống.');
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.message ?? 'Không thể tải dữ liệu từ hệ thống.');
+  }
   return response.json();
 }
 
@@ -44,3 +47,30 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   }
   return response.json();
 }
+
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${getApiUrl()}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.message ?? 'Yêu cầu cập nhật không thành công.');
+  }
+  return response.json();
+}
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string | null;
+  role: 'CUSTOMER' | 'STAFF' | 'MANAGER' | 'ADMIN';
+};
+
+export type AuthSession = {
+  user: AuthUser;
+  accessToken: string;
+  refreshToken: string;
+};

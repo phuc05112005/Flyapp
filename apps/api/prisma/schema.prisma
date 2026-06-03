@@ -136,6 +136,18 @@ model AgencyMarkupRule {
   updatedAt   DateTime  @updatedAt
 }
 
+model AgencyPaymentSetting {
+  id            String   @id @default(cuid())
+  bankName      String   @default("Vietcombank")
+  accountNumber String   @default("0123456789")
+  accountName   String   @default("CONG TY VIETFLY AGENCY")
+  branch        String?
+  qrImageDataUrl String?
+  note          String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
 model Booking {
   id             String        @id @default(cuid())
   bookingCode    String        @unique

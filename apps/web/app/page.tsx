@@ -1,173 +1,125 @@
+import Link from 'next/link';
+import { Suspense } from 'react';
+import type { ReactNode } from 'react';
+import { BadgeCheck, CircleCheck, Headphones, PlaneTakeoff, ReceiptText, ShieldCheck, TicketCheck, WalletCards } from 'lucide-react';
 import { SearchForm } from '@/components/search/search-form';
-import {
-  BadgeCheck,
-  Headphones,
-  PlaneTakeoff,
-  ReceiptText,
-  ShieldCheck,
-  WalletCards
-} from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-50">
-      {/* HERO */}
-      <section className="relative border-b border-slate-200 bg-white">
-        <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-brand-100/40 blur-3xl" />
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-cyan-100/40 blur-3xl" />
-
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 lg:grid-cols-[1fr_460px] lg:items-center lg:py-20">
-          {/* LEFT */}
+    <main className="bg-slate-50">
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-10 lg:grid-cols-[1fr_460px] lg:items-center lg:py-14">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded border border-brand-100 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700">
               <BadgeCheck size={16} />
-              Nền tảng bán vé cho đại lý Việt Nam
+              Nền tảng đặt vé và quản trị đại lý
             </div>
-
-            <h1 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl lg:text-6xl">
-              Đặt vé máy bay nhanh,
-              <span className="text-brand-600"> rõ giá </span>
-              và chủ động hoa hồng.
+            <h1 className="mt-6 text-4xl font-bold leading-tight text-ink md:text-6xl">
+              Đặt vé máy bay nhanh, rõ giá, quản lý đơn chuyên nghiệp.
             </h1>
-
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 md:text-lg">
-              Tìm chuyến bay, giữ chỗ, tạo đơn, thanh toán và quản lý doanh thu
-              trên một hệ thống hiện đại dành cho đội bán vé chuyên nghiệp.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 md:text-lg">
+              Khách hàng tìm chuyến bay, tạo tài khoản, giữ chỗ và thanh toán. Đại lý theo dõi booking, trạng thái xuất vé, doanh thu và thông tin khách trong một hệ thống thống nhất.
             </p>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <ShieldCheck className="text-brand-600" size={20} />
-                <span className="text-sm font-medium text-slate-700">
-                  Giá đã cộng hoa hồng
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <WalletCards className="text-brand-600" size={20} />
-                <span className="text-sm font-medium text-slate-700">
-                  Nhiều phương thức thanh toán
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <Headphones className="text-brand-600" size={20} />
-                <span className="text-sm font-medium text-slate-700">
-                  Hỗ trợ online 24/7
-                </span>
-              </div>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/search" className="btn-primary min-h-12 px-5">
+                Tìm chuyến bay
+              </Link>
+              <Link href="/login" className="btn-secondary min-h-12 px-5">
+                Đăng nhập / tạo tài khoản
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <Value icon={<ShieldCheck size={19} />} label="Giá đã gồm phí" />
+              <Value icon={<WalletCards size={19} />} label="Thanh toán mock" />
+              <Value icon={<Headphones size={19} />} label="Theo dõi vé 24/7" />
             </div>
           </div>
 
-          {/* RIGHT */}
-          <div className="relative w-full max-w-xl lg:ml-auto">
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-200/40 blur-3xl" />
-
-            <div className="relative rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">
-                    Tìm kiếm tức thì
-                  </p>
-                  <p className="text-lg font-semibold text-slate-900">
-                    Chuyến bay nội địa
-                  </p>
-                </div>
-
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-lg">
-                  <PlaneTakeoff size={24} />
-                </div>
+          <div className="rounded border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-slate-500">Tìm kiếm tức thì</p>
+                <p className="text-lg font-bold text-ink">Chuyến bay nội địa</p>
               </div>
-
+              <div className="grid h-12 w-12 place-items-center rounded bg-brand-600 text-white">
+                <PlaneTakeoff size={23} />
+              </div>
+            </div>
+            <Suspense fallback={<div className="h-48 rounded bg-slate-50" />}>
               <SearchForm />
-            </div>
+            </Suspense>
           </div>
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="mx-auto max-w-7xl px-4 py-14">
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-10 lg:grid-cols-[1fr_380px]">
         <div className="grid gap-6 md:grid-cols-3">
-          {[
-            [
-              'Giữ chỗ 15 phút',
-              'Tạo PNR mock trong môi trường dev, dễ dàng tích hợp provider thật.'
-            ],
-            [
-              'Quy tắc hoa hồng',
-              'Tự động cộng theo phần trăm hoặc số tiền cố định theo hãng.'
-            ],
-            [
-              'Quản trị đại lý',
-              'Theo dõi doanh thu, khách hàng và thao tác bán vé tập trung.'
-            ]
-          ].map(([title, description]) => (
-            <div
-              key={title}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
-                <ReceiptText className="text-brand-600" size={24} />
-              </div>
-
-              <p className="mt-5 text-lg font-semibold text-slate-900">
-                {title}
-              </p>
-
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                {description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* POPULAR ROUTES */}
-      <section className="mx-auto max-w-7xl px-4 pb-20">
-        <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-wider text-brand-600">
-            Tuyến phổ biến
-          </p>
-
-          <h2 className="mt-2 text-3xl font-bold text-slate-900">
-            Các hành trình bán chạy
-          </h2>
+          <Feature title="Giữ chỗ thông minh" description="Tạo booking, giữ ghế, lưu PNR mock và kiểm soát số ghế còn lại theo từng hạng." />
+          <Feature title="Tài khoản khách hàng" description="Khách đăng ký, xem lại lịch sử đặt vé, tiếp tục thanh toán và tra cứu vé điện tử." />
+          <Feature title="Dashboard đại lý" description="Theo dõi doanh thu, đơn chờ xử lý, vé đã xuất và thông tin khách hàng mới nhất." />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            ['Hà Nội', 'TP.HCM', 'HAN', 'SGN'],
-            ['TP.HCM', 'Phú Quốc', 'SGN', 'PQC'],
-            ['Hà Nội', 'Đà Nẵng', 'HAN', 'DAD']
-          ].map(([fromCity, toCity, fromCode, toCode]) => (
-            <div
-              key={`${fromCode}-${toCode}`}
-              className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-lg font-semibold text-slate-900">
-                    {fromCity} → {toCity}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    {fromCode} - {toCode}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-brand-50 p-3">
-                  <PlaneTakeoff className="text-brand-600" size={22} />
-                </div>
+        <div className="rounded border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 font-bold text-ink">
+            <TicketCheck className="text-brand-600" size={20} />
+            Vé mẫu đã xuất
+          </div>
+          <div className="mt-5 rounded bg-slate-950 p-5 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-300">HAN → SGN</p>
+                <p className="mt-1 text-2xl font-bold">VN317</p>
               </div>
-
-              <p className="mt-5 text-sm leading-7 text-slate-500">
-                Nhiều khung giờ trong ngày, hiển thị giá cuối đã cộng hoa hồng
-                đại lý.
-              </p>
+              <PlaneTakeoff size={28} />
             </div>
-          ))}
+            <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-slate-400">Khởi hành</p>
+                <p className="font-semibold">07:20</p>
+              </div>
+              <div>
+                <p className="text-slate-400">PNR</p>
+                <p className="font-semibold">VF8K2P</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm text-slate-600">
+            <Line text="Xác nhận thanh toán sinh vé tự động" />
+            <Line text="Tra cứu booking bằng mã đặt vé" />
+            <Line text="Đại lý xem đơn mới theo thời gian tạo" />
+          </div>
         </div>
       </section>
     </main>
+  );
+}
+
+function Value({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded border border-slate-200 bg-white p-4 shadow-sm">
+      <span className="text-brand-600">{icon}</span>
+      <span className="text-sm font-semibold text-slate-700">{label}</span>
+    </div>
+  );
+}
+
+function Feature({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded bg-brand-50 text-brand-700">
+        <ReceiptText size={22} />
+      </div>
+      <p className="mt-5 text-lg font-bold text-ink">{title}</p>
+      <p className="mt-3 text-sm leading-7 text-slate-500">{description}</p>
+    </div>
+  );
+}
+
+function Line({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <CircleCheck size={15} className="text-emerald-600" />
+      <span>{text}</span>
+    </div>
   );
 }
