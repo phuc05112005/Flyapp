@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  phone         String?         @unique
+  password      String
+  fullName      String
+  avatar        String?
+  role          Role            @default(CUSTOMER)
+  isVerified    Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bookings      Booking[]
+  passengers    SavedPassenger[]
+  refreshTokens RefreshToken[]
+  notifications Notification[]
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+  MANAGER
+  ADMIN
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Airline {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  name     String
+  logo     String?
+  isActive Boolean  @default(true)
+  flights  Flight[]
+}
+
+model Airport {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  name       String
+  city       String
+  country    String  @default("VN")
+  timezone   String  @default("Asia/Ho_Chi_Minh")
+  routesFrom Route[] @relation("DepartureAirport")
+  routesTo   Route[] @relation("ArrivalAirport")
+}
+
+model Route {
+  id          String   @id @default(cuid())
+  departureId String
+  arrivalId   String
+  distanceKm  Int?
+  isActive    Boolean  @default(true)
+  departure   Airport  @relation("DepartureAirport", fields: [departureId], references: [id])
+  arrival     Airport  @relation("ArrivalAirport", fields: [arrivalId], references: [id])
+  flights     Flight[]
+
+  @@unique([departureId, arrivalId])
+}
+
+model Flight {
+  id            String        @id @default(cuid())
+  providerRef   String?
+  flightNumber  String
+  airlineId     String
+  routeId       String
+  departureTime DateTime
+  arrivalTime   DateTime
+  durationMin   Int
+  aircraft      String?
+  status        FlightStatus  @default(SCHEDULED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  airline       Airline       @relation(fields: [airlineId], references: [id])
+  route         Route         @relation(fields: [routeId], references: [id])
+  classes       FlightClass[]
+  bookings      Booking[]
+}
+
+enum FlightStatus {
+  SCHEDULED
+  DELAYED
+  CANCELLED
+  COMPLETED
+}
+
+model FlightClass {
+  id             String        @id @default(cuid())
+  flightId       String
+  classType      ClassType
+  totalSeats     Int
+  availableSeats Int
+  basePriceVND   BigInt
+  flightTaxVND   BigInt
+  baggageKg      Int           @default(0)
+  flight         Flight        @relation(fields: [flightId], references: [id])
+  bookingItems   BookingItem[]
+
+  @@unique([flightId, classType])
+}
+
+enum ClassType {
+  ECONOMY
+  PREMIUM_ECONOMY
+  BUSINESS
+  FIRST
+}
+
+model AgencyMarkupRule {
+  id          String    @id @default(cuid())
+  name        String
+  airlineCode String?
+  routeId     String?
+  classType   ClassType?
+  percent     Decimal   @default(0)
+  fixedVND    BigInt    @default(0)
+  isActive    Boolean   @default(true)
+  priority    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AgencyPaymentSetting {
+  id            String   @id @default(cuid())
+  bankName      String   @default("Vietcombank")
+  accountNumber String   @default("0123456789")
+  accountName   String   @default("CONG TY VIETFLY AGENCY")
+  branch        String?
+  qrImageDataUrl String?
+  note          String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  bookingCode    String        @unique
+  userId         String?
+  flightId       String
+  status         BookingStatus @default(PENDING)
+  contactName    String
+  contactEmail   String
+  contactPhone   String
+  baseAmountVND  BigInt
+  markupVND      BigInt        @default(0)
+  discountVND    BigInt        @default(0)
+  totalAmountVND BigInt
+  providerPnr    String?
+  paidAt         DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User?         @relation(fields: [userId], references: [id])
+  flight         Flight        @relation(fields: [flightId], references: [id])
+  items          BookingItem[]
+  payment        Payment?
+  tickets        Ticket[]
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+model BookingItem {
+  id             String        @id @default(cuid())
+  bookingId      String
+  flightClassId  String
+  passengerType  PassengerType @default(ADULT)
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime?
+  gender         Gender?
+  nationality    String?       @default("VN")
+  idNumber       String?
+  passportExpiry DateTime?
+  seatNumber     String?
+  baggageExtraKg Int           @default(0)
+  priceVND       BigInt
+  booking        Booking       @relation(fields: [bookingId], references: [id])
+  flightClass    FlightClass   @relation(fields: [flightClassId], references: [id])
+  ticket         Ticket?
+}
+
+enum PassengerType {
+  ADULT
+  CHILD
+  INFANT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model Ticket {
+  id            String      @id @default(cuid())
+  bookingId     String
+  bookingItemId String      @unique
+  ticketNumber  String      @unique
+  pnrCode       String?
+  issuedAt      DateTime    @default(now())
+  pdfUrl        String?
+  booking       Booking     @relation(fields: [bookingId], references: [id])
+  bookingItem   BookingItem @relation(fields: [bookingItemId], references: [id])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  bookingId       String        @unique
+  method          PaymentMethod
+  gateway         String?
+  gatewayTxId     String?
+  amountVND       BigInt
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  refundAmountVND BigInt?
+  rawResponse     Json?
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  VNPAY
+  MOMO
+  ZALOPAY
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model SavedPassenger {
+  id          String    @id @default(cuid())
+  userId      String
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  gender      Gender?
+  idNumber    String?
+  nationality String?   @default("VN")
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Promotion {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  name           String
+  description    String?
+  discountType   DiscountType
+  discountValue  Decimal
+  minOrderVND    BigInt?
+  maxDiscountVND BigInt?
+  usageLimit     Int?
+  usageCount     Int          @default(0)
+  perUserLimit   Int          @default(1)
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean      @default(true)
+  appliesTo      String?
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}

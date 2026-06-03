@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #172033;
+
+  --brand-50: #eef6ff;
+  --brand-100: #d9ebff;
+  --brand-200: #b9dbff;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+
+  --ink: #172033;
+  --coral: #ff6b57;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    Inter,
+    system-ui,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* CUSTOM UTILITIES */
+
+.bg-brand-50 {
+  background-color: var(--brand-50);
+}
+
+.bg-brand-100 {
+  background-color: var(--brand-100);
+}
+
+.bg-brand-200 {
+  background-color: var(--brand-200);
+}
+
+.bg-brand-600 {
+  background-color: var(--brand-600);
+}
+
+.bg-brand-700 {
+  background-color: var(--brand-700);
+}
+
+.bg-coral {
+  background-color: var(--coral);
+}
+
+.text-brand-600 {
+  color: var(--brand-600);
+}
+
+.text-brand-700 {
+  color: var(--brand-700);
+}
+
+.border-brand-100 {
+  border-color: var(--brand-100);
+}
+
+.border-brand-200 {
+  border-color: var(--brand-200);
+}
+
+.border-brand-600 {
+  border-color: var(--brand-600);
+}
+
+.text-ink {
+  color: var(--ink);
+}
+
+.text-coral {
+  color: var(--coral);
+}
+
+.shadow-soft {
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08),
+    0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--coral);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(255, 107, 87, 0.22);
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.btn-primary:hover {
+  background: #df4f43;
+  box-shadow: 0 14px 30px rgba(255, 107, 87, 0.28);
+}
+
+.btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--brand-200);
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
