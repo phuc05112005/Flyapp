@@ -18,6 +18,11 @@ export class FlightsController {
     return this.flightsService.findById(id);
   }
 
+  @Get('flights/:id/seats')
+  seats(@Param('id') id: string) {
+    return this.flightsService.getSeats(id);
+  }
+
   @Get('airports')
   airports() {
     return this.flightsService.listAirports();

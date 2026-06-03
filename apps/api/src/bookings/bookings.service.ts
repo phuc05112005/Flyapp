@@ -73,6 +73,7 @@ export class BookingsService {
               lastName: passenger.lastName,
               gender: passenger.gender,
               idNumber: passenger.idNumber,
+              seatNumber: passenger.seatNumber,
               priceVND: perPassengerBase
             }))
           }
