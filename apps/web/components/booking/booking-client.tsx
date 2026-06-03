@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, CircleCheck, ContactRound, Plane, Plus, UserRound } from 'lucide-react';
+import { ArrowRight, CircleCheck, ContactRound, Plane, Plus, UserRound, Armchair } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth-client';
 import { currency, formatDate, formatTime } from '@/lib/format';
+import { SeatSelection } from './seat-selection';
 
 type FlightDetail = {
   id: string;
@@ -51,6 +52,7 @@ export function BookingClient() {
   const user = useMemo(() => getCurrentUser(), []);
   const [flight, setFlight] = useState<FlightDetail | null>(null);
   const [passengers, setPassengers] = useState<PassengerDraft[]>([emptyPassenger()]);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [contactName, setContactName] = useState(user?.fullName ?? '');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [contactPhone, setContactPhone] = useState(user?.phone ?? '');
@@ -78,6 +80,8 @@ export function BookingClient() {
       while (next.length < nextCount) next.push(emptyPassenger());
       return next;
     });
+    // Clear selected seats if count changes to avoid mismatch
+    setSelectedSeats([]);
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -97,9 +101,10 @@ export function BookingClient() {
         contactEmail,
         contactPhone,
         promotionCode: promotionCode || undefined,
-        passengers: passengers.map((passenger) => ({
+        passengers: passengers.map((passenger, index) => ({
           ...passenger,
-          idNumber: passenger.idNumber || undefined
+          idNumber: passenger.idNumber || undefined,
+          seatNumber: selectedSeats[index] || undefined
         }))
       });
       setBooking(result);
@@ -130,8 +135,15 @@ export function BookingClient() {
           <div className="mt-5 grid gap-4">
             {passengers.map((passenger, index) => (
               <div key={index} className="rounded border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-4 flex items-center gap-2 font-semibold text-ink">
-                  <UserRound size={18} /> Hành khách {index + 1}
+                <div className="mb-4 flex items-center justify-between gap-2 font-semibold text-ink">
+                  <div className="flex items-center gap-2">
+                    <UserRound size={18} /> Hành khách {index + 1}
+                  </div>
+                  {selectedSeats[index] && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-700">
+                      <Armchair size={14} /> Ghế {selectedSeats[index]}
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <Field label="Họ" value={passenger.lastName} onChange={(value) => updatePassenger(index, 'lastName', value)} required />
@@ -156,6 +168,19 @@ export function BookingClient() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-2">
+            <Armchair className="text-brand-600" size={20} />
+            <h2 className="text-xl font-bold text-ink">Chọn chỗ ngồi trên máy bay</h2>
+          </div>
+          <SeatSelection 
+            flightId={flightId} 
+            passengerCount={passengers.length} 
+            selectedSeats={selectedSeats} 
+            onSelect={setSelectedSeats} 
+          />
         </section>
 
         <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">

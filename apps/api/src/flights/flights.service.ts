@@ -95,6 +95,46 @@ export class FlightsService {
     });
   }
 
+  async getSeats(flightId: string) {
+    const flight = await this.prisma.flight.findUniqueOrThrow({
+      where: { id: flightId },
+      include: { classes: true }
+    });
+
+    const bookings = await this.prisma.booking.findMany({
+      where: { flightId, status: { not: 'CANCELLED' } },
+      include: { items: true }
+    });
+
+    const occupiedSeats = bookings.flatMap((b) => b.items.map((i) => i.seatNumber).filter(Boolean));
+
+    // Simple layout generation based on aircraft type
+    let layout = {
+      rows: 30,
+      cols: ['A', 'B', 'C', 'D', 'E', 'F'],
+      aisleAfter: 3 // After column C
+    };
+
+    if (flight.aircraft?.includes('787') || flight.aircraft?.includes('A350')) {
+      layout = {
+        rows: 40,
+        cols: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'],
+        aisleAfter: 3 // Multiple aisles usually, but we keep it simple for now
+      };
+    }
+
+    return {
+      occupiedSeats,
+      layout,
+      classes: flight.classes.map(c => ({
+        classType: c.classType,
+        totalSeats: c.totalSeats,
+        // In a real app, we'd define which rows belong to which class
+        rows: c.classType === 'BUSINESS' ? [1, 2, 3, 4] : undefined
+      }))
+    };
+  }
+
   listAirports() {
     return this.prisma.airport.findMany({ orderBy: [{ city: 'asc' }, { code: 'asc' }] });
   }

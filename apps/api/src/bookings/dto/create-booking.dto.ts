@@ -19,6 +19,10 @@ export class BookingPassengerDto {
   @IsOptional()
   @IsString()
   idNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  seatNumber?: string;
 }
 
 export class CreateBookingDto {
