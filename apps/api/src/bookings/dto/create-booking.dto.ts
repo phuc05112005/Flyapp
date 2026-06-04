@@ -23,6 +23,17 @@ export class BookingPassengerDto {
   @IsOptional()
   @IsString()
   seatNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  baggageId?: string;
+
+  @IsOptional()
+  @IsString()
+  baggageExtraKg?: number;
+
+  @IsOptional()
+  extraServices?: any[];
 }
 
 export class CreateBookingDto {

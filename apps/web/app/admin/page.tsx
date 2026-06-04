@@ -1,196 +1,152 @@
-import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { AlertTriangle, Banknote, Clock3, PlaneTakeoff, ReceiptText, UsersRound } from 'lucide-react';
-import { PaymentSettingsForm, type AgencyPaymentSetting } from '@/components/admin/payment-settings-form';
-import { StaffManagement } from '@/components/admin/staff-management';
-import { apiGet } from '@/lib/api';
-import { currency, formatDate, formatTime } from '@/lib/format';
+'use client';
 
-type Stats = {
-  bookingsToday: number;
-  pendingBookings: number;
-  customers: number;
-  confirmedBookings: number;
-  totalBookings: number;
-  revenueTodayVND: number;
-};
+import { useState } from 'react';
+import { 
+  LayoutDashboard, 
+  Plane, 
+  Settings, 
+  Users, 
+  History, 
+  Wallet, 
+  Utensils, 
+  Luggage, 
+  BarChart3, 
+  Bell, 
+  Search, 
+  LogOut,
+  ChevronRight,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-type AdminBooking = {
-  id: string;
-  bookingCode: string;
-  status: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  totalAmountVND: number;
-  createdAt: string;
-  items: { id: string }[];
-  tickets: { id: string }[];
-  payment?: { status: string; method: string } | null;
-  flight: {
-    flightNumber: string;
-    departureTime: string;
-    airline: { code: string; name: string };
-    route: { departure: { code: string; city: string }; arrival: { code: string; city: string } };
-  };
-};
+// Sub-components for different tabs
+import { AdminOverview } from '@/components/admin/admin-overview';
+import { FlightManagement } from '@/components/admin/flight-management';
+import { ServiceManagement } from '@/components/admin/service-management';
+import { BookingHistory } from '@/components/admin/booking-history';
 
-const fallbackPaymentSetting: AgencyPaymentSetting = {
-  id: 'fallback',
-  bankName: 'Vietcombank',
-  accountNumber: '0123456789',
-  accountName: 'CONG TY VIETFLY AGENCY',
-  branch: 'TP. Ho Chi Minh',
-  qrImageDataUrl: null,
-  note: 'Vui lòng chuyển khoản đúng nội dung mã đặt vé để đại lý đối soát nhanh.'
-};
+const MENU_ITEMS = [
+  { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'flights', label: 'Quản lý chuyến bay', icon: Plane },
+  { id: 'services', label: 'Dịch vụ & Hành lý', icon: Utensils },
+  { id: 'bookings', label: 'Lịch sử đặt vé', icon: History },
+  { id: 'finance', label: 'Doanh thu & Tài chính', icon: BarChart3 },
+  { id: 'settings', label: 'Cấu hình đại lý', icon: Settings },
+];
 
-export default async function AdminDashboardPage() {
-  const [stats, bookings, paymentSetting] = await Promise.all([
-    apiGet<Stats>('/admin/dashboard/stats').catch(() => ({
-      bookingsToday: 0,
-      pendingBookings: 0,
-      customers: 0,
-      confirmedBookings: 0,
-      totalBookings: 0,
-      revenueTodayVND: 0
-    })),
-    apiGet<AdminBooking[]>('/admin/bookings').catch(() => []),
-    apiGet<AgencyPaymentSetting>('/admin/payment-settings').catch(() => fallbackPaymentSetting)
-  ]);
+export default function AdminPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8">
-      <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Bảng điều hành đại lý</p>
-            <h1 className="mt-1 text-3xl font-bold text-ink">Quản lý đơn đặt vé và doanh thu</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Theo dõi đơn mới, trạng thái thanh toán, vé đã xuất và cấu hình thông tin chuyển khoản hiển thị cho khách hàng.
-            </p>
-          </div>
-          <Link href="/search" className="btn-primary h-10 px-4 text-sm">
-            Tạo booking mới
-          </Link>
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Stat icon={<ReceiptText size={20} />} label="Đơn hôm nay" value={String(stats.bookingsToday)} />
-        <Stat icon={<Banknote size={20} />} label="Doanh thu hôm nay" value={currency.format(stats.revenueTodayVND)} />
-        <Stat icon={<Clock3 size={20} />} label="Chờ thanh toán" value={String(stats.pendingBookings)} />
-        <Stat icon={<PlaneTakeoff size={20} />} label="Đã xuất vé" value={String(stats.confirmedBookings)} />
-        <Stat icon={<UsersRound size={20} />} label="Khách hàng" value={String(stats.customers)} />
-      </section>
-
-      <section className="mt-6">
-        <PaymentSettingsForm initialSetting={paymentSetting} />
-      </section>
-
-      <section className="mt-6">
-        <StaffManagement />
-      </section>
-
-      <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="rounded border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
-            <h2 className="text-xl font-bold text-ink">Đơn đặt vé mới nhất</h2>
-            <p className="mt-1 text-sm text-slate-500">{stats.totalBookings} booking trong hệ thống</p>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {bookings.length === 0 ? (
-              <div className="p-6 text-sm text-slate-500">Chưa có booking hoặc API chưa sẵn sàng.</div>
-            ) : (
-              bookings.map((booking) => <BookingItem key={booking.id} booking={booking} />)
-            )}
-          </div>
+    <div className="min-h-screen bg-[#f8fafc] flex">
+      {/* Sidebar */}
+      <motion.aside 
+        initial={false}
+        animate={{ width: sidebarOpen ? 300 : 88 }}
+        className="bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen z-40"
+      >
+        <div className="p-8 flex items-center gap-4">
+           <div className="h-10 w-10 shrink-0 rounded-xl bg-brand-600 flex items-center justify-center font-black text-white shadow-lg shadow-brand-200">VF</div>
+           <AnimatePresence>
+             {sidebarOpen && (
+               <motion.span 
+                 initial={{ opacity: 0, x: -10 }} 
+                 animate={{ opacity: 1, x: 0 }} 
+                 exit={{ opacity: 0, x: -10 }}
+                 className="font-black text-xl text-ink tracking-tighter truncate"
+               >
+                 VIETFLY ADMIN
+               </motion.span>
+             )}
+           </AnimatePresence>
         </div>
 
-        <aside className="grid h-fit gap-4">
-          <div className="rounded border border-amber-200 bg-amber-50 p-5">
-            <div className="flex items-center gap-2 font-bold text-amber-900">
-              <AlertTriangle size={19} /> Việc cần xử lý
-            </div>
-            <div className="mt-4 grid gap-3 text-sm text-amber-900">
-              <Task label="Gọi khách chưa thanh toán" value={`${stats.pendingBookings} đơn`} />
-              <Task label="Kiểm tra vé đã xuất" value={`${stats.confirmedBookings} đơn`} />
-              <Task label="Đối soát doanh thu" value={currency.format(stats.revenueTodayVND)} />
-            </div>
-          </div>
-          <div className="rounded border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-bold text-ink">Quy trình chuyển khoản</p>
-            <ol className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
-              <li>1. Khách chọn chuyển khoản và quét QR của đại lý.</li>
-              <li>2. Nội dung chuyển khoản là mã đặt vé.</li>
-              <li>3. Đại lý đối soát giao dịch và xác nhận thanh toán.</li>
-              <li>4. Hệ thống xuất vé điện tử và lưu trạng thái booking.</li>
-            </ol>
-          </div>
-        </aside>
-      </section>
-    </main>
-  );
-}
+        <nav className="flex-1 px-4 space-y-2 mt-4">
+           {MENU_ITEMS.map((item) => (
+             <button
+               key={item.id}
+               onClick={() => setActiveTab(item.id)}
+               className={`
+                 w-full flex items-center gap-4 px-4 py-4 rounded-[18px] transition-all group
+                 ${activeTab === item.id ? 'bg-brand-600 text-white shadow-xl shadow-brand-100' : 'text-slate-500 hover:bg-slate-50'}
+               `}
+             >
+               <item.icon size={22} className={activeTab === item.id ? 'text-white' : 'group-hover:text-brand-600'} />
+               <AnimatePresence>
+                 {sidebarOpen && (
+                   <motion.span 
+                     initial={{ opacity: 0 }} 
+                     animate={{ opacity: 1 }} 
+                     className="font-bold text-sm"
+                   >
+                     {item.label}
+                   </motion.span>
+                 )}
+               </AnimatePresence>
+             </button>
+           ))}
+        </nav>
 
-function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex h-10 w-10 items-center justify-center rounded bg-brand-50 text-brand-700">{icon}</div>
-      <p className="mt-4 text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-    </div>
-  );
-}
-
-function BookingItem({ booking }: { booking: AdminBooking }) {
-  return (
-    <article className="grid gap-4 p-5 xl:grid-cols-[1.1fr_1fr_auto] xl:items-center">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/track?code=${booking.bookingCode}`} className="font-bold text-brand-700 hover:underline">
-            {booking.bookingCode}
-          </Link>
-          <Status status={booking.status} />
+        <div className="p-4 border-t border-slate-100">
+           <button className="w-full flex items-center gap-4 px-4 py-4 rounded-[18px] text-rose-500 hover:bg-rose-50 font-bold text-sm transition-all">
+              <LogOut size={22} />
+              {sidebarOpen && <span>Đăng xuất</span>}
+           </button>
         </div>
-        <p className="mt-2 font-semibold text-ink">{booking.contactName}</p>
-        <p className="text-sm text-slate-500">{booking.contactEmail} · {booking.contactPhone}</p>
-      </div>
-      <div>
-        <p className="font-semibold text-ink">
-          {booking.flight.route.departure.code} → {booking.flight.route.arrival.code} · {booking.flight.flightNumber}
-        </p>
-        <p className="text-sm text-slate-500">
-          {booking.flight.airline.name} · {formatDate(booking.flight.departureTime)} {formatTime(booking.flight.departureTime)}
-        </p>
-        <p className="mt-1 text-sm text-slate-500">
-          {booking.items.length} khách · {booking.tickets.length} vé · {booking.payment?.method || 'chưa chọn thanh toán'}
-        </p>
-      </div>
-      <div className="text-left xl:text-right">
-        <p className="text-lg font-bold text-coral">{currency.format(booking.totalAmountVND)}</p>
-        <p className="text-sm text-slate-500">{booking.payment?.status || 'NO_PAYMENT'}</p>
-      </div>
-    </article>
-  );
-}
+      </motion.aside>
 
-function Status({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    PENDING: 'border-amber-200 bg-amber-50 text-amber-700',
-    CONFIRMED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    PAID: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    CANCELLED: 'border-rose-200 bg-rose-50 text-rose-700'
-  };
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-10 sticky top-0 z-30">
+           <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 hover:bg-white transition-all"
+              >
+                 <ChevronRight className={`transition-transform duration-500 ${sidebarOpen ? 'rotate-180' : 'rotate-0'}`} />
+              </button>
+              <h2 className="font-black text-xl text-ink">
+                {MENU_ITEMS.find(i => i.id === activeTab)?.label}
+              </h2>
+           </div>
 
-  return <span className={`rounded border px-2 py-1 text-xs font-semibold ${styles[status] ?? 'border-slate-200 bg-slate-50 text-slate-600'}`}>{status}</span>;
-}
+           <div className="flex items-center gap-6">
+              <div className="relative hidden md:block">
+                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                 <input 
+                   placeholder="Tìm mã đơn, tên khách..." 
+                   className="h-11 w-72 rounded-2xl bg-slate-50 border border-slate-100 pl-12 pr-4 text-xs font-bold outline-none focus:bg-white focus:border-brand-300 transition-all"
+                 />
+              </div>
+              <div className="h-10 w-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 relative">
+                 <Bell size={20} />
+                 <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
+              </div>
+              <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
+                 <div className="text-right hidden sm:block">
+                    <p className="text-xs font-black text-ink">Phuc Nguyen</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Quản lý cấp cao</p>
+                 </div>
+                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 shadow-md"></div>
+              </div>
+           </div>
+        </header>
 
-function Task({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded bg-white/60 px-3 py-2">
-      <span>{label}</span>
-      <span className="font-bold">{value}</span>
+        {/* Content View */}
+        <div className="p-10">
+           <AnimatePresence mode="wait">
+              {activeTab === 'overview' && <AdminOverview key="overview" />}
+              {activeTab === 'flights' && <FlightManagement key="flights" />}
+              {activeTab === 'services' && <ServiceManagement key="services" />}
+              {activeTab === 'bookings' && <BookingHistory key="bookings" />}
+           </AnimatePresence>
+        </div>
+      </main>
     </div>
   );
 }
