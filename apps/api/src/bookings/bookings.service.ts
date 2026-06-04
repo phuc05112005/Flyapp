@@ -42,6 +42,9 @@ export class BookingsService {
     const markup = calculateMarkup(baseAmount, Number(rule?.percent ?? 0), toNumber(rule?.fixedVND ?? 0));
     const discount = await this.calculatePromotionDiscount(dto.promotionCode, baseAmount + markup);
     const hold = await this.airlineProvider.holdSeats(dto.flightId, dto.passengers.length);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
     const user = dto.userId
       ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
       : await this.prisma.user.findUnique({ where: { email: dto.contactEmail } });
@@ -65,6 +68,7 @@ export class BookingsService {
           discountVND: discount.amount,
           totalAmountVND: baseAmount + markup - discount.amount,
           providerPnr: hold.pnrCode,
+          expiresAt: expiresAt,
           items: {
             create: dto.passengers.map((passenger) => ({
               flightClassId: flightClass.id,

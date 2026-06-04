@@ -163,6 +163,7 @@ model Booking {
   totalAmountVND BigInt
   providerPnr    String?
   paidAt         DateTime?
+  expiresAt      DateTime?
   cancelledAt    DateTime?
   cancelReason   String?
   createdAt      DateTime      @default(now())

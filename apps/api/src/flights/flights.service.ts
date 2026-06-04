@@ -112,14 +112,14 @@ export class FlightsService {
     let layout = {
       rows: 30,
       cols: ['A', 'B', 'C', 'D', 'E', 'F'],
-      aisleAfter: 3 // After column C
+      aisleAfter: [3] // After column C
     };
 
     if (flight.aircraft?.includes('787') || flight.aircraft?.includes('A350')) {
       layout = {
         rows: 40,
         cols: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'],
-        aisleAfter: 3 // Multiple aisles usually, but we keep it simple for now
+        aisleAfter: [3, 6] // 3-3-3 configuration
       };
     }
 
