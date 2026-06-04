@@ -163,6 +163,7 @@ model Booking {
   totalAmountVND BigInt
   providerPnr    String?
   paidAt         DateTime?
+  expiresAt      DateTime?
   cancelledAt    DateTime?
   cancelReason   String?
   createdAt      DateTime      @default(now())
@@ -197,10 +198,43 @@ model BookingItem {
   passportExpiry DateTime?
   seatNumber     String?
   baggageExtraKg Int           @default(0)
+  extraServices  Json?         // To store selected services like [{name: 'Meal', price: 100000}]
   priceVND       BigInt
   booking        Booking       @relation(fields: [bookingId], references: [id])
   flightClass    FlightClass   @relation(fields: [flightClassId], references: [id])
   ticket         Ticket?
+}
+
+model ExtraService {
+  id          String   @id @default(cuid())
+  airlineId   String?
+  name        String
+  description String?
+  priceVND    BigInt
+  category    String   @default("OTHER") // MEAL, INSURANCE, FAST_TRACK, etc.
+  isActive    Boolean  @default(true)
+  airline     Airline? @relation(fields: [airlineId], references: [id])
+}
+
+model BaggageOption {
+  id          String   @id @default(cuid())
+  airlineId   String?
+  weightKg    Int
+  priceVND    BigInt
+  isActive    Boolean  @default(true)
+  airline     Airline? @relation(fields: [airlineId], references: [id])
+}
+
+model SeatTier {
+  id          String   @id @default(cuid())
+  airlineId   String?
+  name        String   // Standard, Extra Legroom, Business Class
+  priceVND    BigInt
+  description String?
+  rowRange    String?  // e.g., "1-5"
+  columnRange String?  // e.g., "A,F"
+  color       String?  // hex or tailwind class
+  airline     Airline? @relation(fields: [airlineId], references: [id])
 }
 
 enum PassengerType {

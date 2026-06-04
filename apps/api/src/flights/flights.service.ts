@@ -98,7 +98,10 @@ export class FlightsService {
   async getSeats(flightId: string) {
     const flight = await this.prisma.flight.findUniqueOrThrow({
       where: { id: flightId },
-      include: { classes: true }
+      include: { 
+        classes: true,
+        airline: true
+      }
     });
 
     const bookings = await this.prisma.booking.findMany({
@@ -108,32 +111,55 @@ export class FlightsService {
 
     const occupiedSeats = bookings.flatMap((b) => b.items.map((i) => i.seatNumber).filter(Boolean));
 
+    // Fetch Airline-Specific Configurations
+    const [dbSeatTiers, dbBaggageOptions, dbExtraServices] = await Promise.all([
+      this.prisma.seatTier.findMany({ where: { airlineId: flight.airlineId } }),
+      this.prisma.baggageOption.findMany({ where: { airlineId: flight.airlineId }, orderBy: { weightKg: 'asc' } }),
+      this.prisma.extraService.findMany({ where: { airlineId: flight.airlineId } })
+    ]);
+
+    // Default Tiers if not configured
+    const seatTiers = dbSeatTiers.length > 0 ? dbSeatTiers.map(t => ({
+      name: t.name,
+      priceVND: toNumber(t.priceVND),
+      rows: t.rowRange?.split(',').flatMap(r => {
+        if (r.includes('-')) {
+          const [start, end] = r.split('-').map(Number);
+          return Array.from({ length: end - start + 1 }, (_, i) => i + start);
+        }
+        return [Number(r)];
+      }) || [],
+      color: t.color || '#cbd5e1'
+    })) : [
+      { name: 'Standard', priceVND: 0, rows: Array.from({ length: 21 }, (_, i) => i + 10), color: '#cbd5e1' },
+      { name: 'Preferred', priceVND: 50000, rows: [5, 6, 7, 8, 9], color: '#3b82f6' },
+      { name: 'Extra Legroom', priceVND: 150000, rows: [1, 2, 3, 4], color: '#f59e0b' }
+    ];
+
+    const baggageOptions = dbBaggageOptions.length > 0 ? dbBaggageOptions.map(b => ({
+      id: b.id,
+      weightKg: b.weightKg,
+      priceVND: toNumber(b.priceVND)
+    })) : [
+      { id: 'def-bg-1', weightKg: 15, priceVND: 180000 },
+      { id: 'def-bg-2', weightKg: 20, priceVND: 250000 }
+    ];
+
+    const extraServices = dbExtraServices.length > 0 ? dbExtraServices.map(s => ({
+      id: s.id,
+      name: s.name,
+      priceVND: toNumber(s.priceVND),
+      category: s.category
+    })) : [
+      { id: 'def-sv-1', name: 'Suất ăn nóng', priceVND: 65000, category: 'MEAL' }
+    ];
+
     // Simple layout generation based on aircraft type
     let layout = {
       rows: 30,
       cols: ['A', 'B', 'C', 'D', 'E', 'F'],
-      aisleAfter: 3 // After column C
+      aisleAfter: [3]
     };
-
-    if (flight.aircraft?.includes('787') || flight.aircraft?.includes('A350')) {
-      layout = {
-        rows: 40,
-        cols: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'],
-        aisleAfter: 3 // Multiple aisles usually, but we keep it simple for now
-      };
-    }
-
-    return {
-      occupiedSeats,
-      layout,
-      classes: flight.classes.map(c => ({
-        classType: c.classType,
-        totalSeats: c.totalSeats,
-        // In a real app, we'd define which rows belong to which class
-        rows: c.classType === 'BUSINESS' ? [1, 2, 3, 4] : undefined
-      }))
-    };
-  }
 
   listAirports() {
     return this.prisma.airport.findMany({ orderBy: [{ city: 'asc' }, { code: 'asc' }] });

@@ -4,11 +4,32 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, CircleCheck, ContactRound, Plane, Plus, UserRound, Armchair } from 'lucide-react';
+import { 
+  ArrowRight, 
+  CircleCheck, 
+  ContactRound, 
+  Plane, 
+  Plus, 
+  UserRound, 
+  Armchair, 
+  ChevronRight, 
+  ShieldCheck, 
+  Timer,
+  Info,
+  CreditCard,
+  Check,
+  Luggage,
+  Utensils,
+  BadgePercent
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiGet, apiPost } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth-client';
-import { currency, formatDate, formatTime } from '@/lib/format';
+import { currency, formatDate, formatTime, formatCountdown } from '@/lib/format';
 import { SeatSelection } from './seat-selection';
+
+type BaggageOption = { id: string; weightKg: number; priceVND: number };
+type ExtraService = { id: string; name: string; priceVND: number; category: string };
 
 type FlightDetail = {
   id: string;
@@ -22,10 +43,16 @@ type FlightDetail = {
   classes: { classType: string; availableSeats: number; basePriceVND: number; flightTaxVND: number; baggageKg: number }[];
 };
 
+type SeatDataResponse = {
+  baggageOptions: BaggageOption[];
+  extraServices: ExtraService[];
+};
+
 type BookingResponse = {
   id: string;
   bookingCode: string;
   totalAmountVND: number;
+  expiresAt?: string;
 };
 
 type PassengerDraft = {
@@ -34,6 +61,9 @@ type PassengerDraft = {
   lastName: string;
   gender: 'MALE' | 'FEMALE';
   idNumber: string;
+  baggageId?: string;
+  serviceIds: string[];
+  seat?: { id: string; price: number };
 };
 
 const emptyPassenger = (): PassengerDraft => ({
@@ -41,8 +71,16 @@ const emptyPassenger = (): PassengerDraft => ({
   firstName: '',
   lastName: '',
   gender: 'MALE',
-  idNumber: ''
+  idNumber: '',
+  serviceIds: []
 });
+
+const STEPS = [
+  { id: 1, name: 'Hành khách' },
+  { id: 2, name: 'Dịch vụ thêm' },
+  { id: 3, name: 'Chỗ ngồi' },
+  { id: 4, name: 'Thanh toán' }
+];
 
 export function BookingClient() {
   const router = useRouter();
@@ -50,47 +88,60 @@ export function BookingClient() {
   const flightId = params.get('flightId') ?? '';
   const classType = params.get('classType') ?? 'ECONOMY';
   const user = useMemo(() => getCurrentUser(), []);
+  
+  const [currentStep, setCurrentStep] = useState(1);
   const [flight, setFlight] = useState<FlightDetail | null>(null);
+  const [extras, setExtras] = useState<SeatDataResponse | null>(null);
   const [passengers, setPassengers] = useState<PassengerDraft[]>([emptyPassenger()]);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [contactName, setContactName] = useState(user?.fullName ?? '');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [contactPhone, setContactPhone] = useState(user?.phone ?? '');
   const [promotionCode, setPromotionCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState<BookingResponse | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   useEffect(() => {
     if (!flightId) return;
-    apiGet<FlightDetail>(`/flights/${flightId}`).then(setFlight).catch(() => toast.error('Không tải được thông tin chuyến bay.'));
+    apiGet<FlightDetail>(`/flights/${flightId}`).then(setFlight);
+    apiGet<SeatDataResponse>(`/flights/${flightId}/seats`).then(setExtras);
   }, [flightId]);
 
-  const selectedClass = flight?.classes.find((item) => item.classType === classType);
-  const estimatedBase = selectedClass ? Number(selectedClass.basePriceVND) + Number(selectedClass.flightTaxVND) : 0;
-  const estimatedTotal = estimatedBase * passengers.length;
-
-  function updatePassenger(index: number, field: keyof PassengerDraft, value: string) {
-    setPassengers((current) => current.map((passenger, itemIndex) => itemIndex === index ? { ...passenger, [field]: value } : passenger));
-  }
-
-  function setPassengerCount(count: number) {
-    const nextCount = Math.min(Math.max(count, 1), 9);
-    setPassengers((current) => {
-      const next = current.slice(0, nextCount);
-      while (next.length < nextCount) next.push(emptyPassenger());
-      return next;
-    });
-    // Clear selected seats if count changes to avoid mismatch
-    setSelectedSeats([]);
-  }
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!flightId) {
-      toast.error('Thiếu chuyến bay để đặt vé.');
+  useEffect(() => {
+    if (!timeLeft) return;
+    if (timeLeft <= 0) {
+      toast.error('Hết hạn giữ chỗ.');
+      router.push('/search');
       return;
     }
+    const timer = setInterval(() => setTimeLeft(prev => prev ? prev - 1 : null), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, router]);
 
+  const selectedClass = flight?.classes.find((item) => item.classType === classType);
+  const basePricePerPerson = selectedClass ? Number(selectedClass.basePriceVND) + Number(selectedClass.flightTaxVND) : 0;
+  
+  const totalAmount = useMemo(() => {
+    let total = basePricePerPerson * passengers.length;
+    passengers.forEach(p => {
+      if (p.baggageId && extras) {
+        const bg = extras.baggageOptions.find(b => b.id === p.baggageId);
+        if (bg) total += bg.priceVND;
+      }
+      p.serviceIds.forEach(sid => {
+        const s = extras?.extraServices.find(es => es.id === sid);
+        if (s) total += s.priceVND;
+      });
+      if (p.seat) total += p.seat.price;
+    });
+    return total;
+  }, [basePricePerPerson, passengers, extras]);
+
+  function updatePassenger(index: number, update: Partial<PassengerDraft>) {
+    setPassengers(prev => prev.map((p, i) => i === index ? { ...p, ...update } : p));
+  }
+
+  async function handleCreateBooking() {
     setLoading(true);
     try {
       const result = await apiPost<BookingResponse>('/bookings', {
@@ -101,169 +152,264 @@ export function BookingClient() {
         contactEmail,
         contactPhone,
         promotionCode: promotionCode || undefined,
-        passengers: passengers.map((passenger, index) => ({
-          ...passenger,
-          idNumber: passenger.idNumber || undefined,
-          seatNumber: selectedSeats[index] || undefined
+        passengers: passengers.map(p => ({
+          ...p,
+          seatNumber: p.seat?.id,
+          extraServices: p.serviceIds.map(sid => {
+            const s = extras?.extraServices.find(es => es.id === sid);
+            return s ? { name: s.name, price: s.priceVND } : null;
+          }).filter(Boolean)
         }))
       });
       setBooking(result);
-      toast.success('Giữ chỗ thành công. Bạn có thể thanh toán ngay.');
+      if (result.expiresAt) {
+        setTimeLeft(Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000));
+      }
+      setCurrentStep(4);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Không thể tạo đơn đặt vé.');
+      toast.error('Không thể tạo đơn đặt vé.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[1fr_360px]">
-      <form onSubmit={submit} className="grid gap-5">
-        <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Bước 1</p>
-              <h1 className="mt-1 text-2xl font-bold text-ink">Thông tin hành khách</h1>
-              <p className="mt-1 text-sm text-slate-500">Nhập đúng họ tên theo giấy tờ tùy thân để xuất vé.</p>
-            </div>
-            <label className="grid gap-1 text-sm font-semibold text-slate-700">
-              Số khách
-              <input type="number" min={1} max={9} value={passengers.length} onChange={(event) => setPassengerCount(Number(event.target.value))} className="h-11 w-28 rounded border border-slate-300 px-3" />
-            </label>
-          </div>
-
-          <div className="mt-5 grid gap-4">
-            {passengers.map((passenger, index) => (
-              <div key={index} className="rounded border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-4 flex items-center justify-between gap-2 font-semibold text-ink">
-                  <div className="flex items-center gap-2">
-                    <UserRound size={18} /> Hành khách {index + 1}
-                  </div>
-                  {selectedSeats[index] && (
-                    <div className="flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-700">
-                      <Armchair size={14} /> Ghế {selectedSeats[index]}
-                    </div>
-                  )}
+    <div className="min-h-screen bg-slate-50/50 pb-20">
+      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            {STEPS.map((step) => (
+              <div key={step.id} className="flex items-center gap-2">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black ${currentStep >= step.id ? 'bg-brand-600 text-white shadow-lg shadow-brand-100' : 'bg-slate-100 text-slate-400'}`}>
+                  {currentStep > step.id ? <Check size={12} /> : step.id}
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Họ" value={passenger.lastName} onChange={(value) => updatePassenger(index, 'lastName', value)} required />
-                  <Field label="Tên đệm và tên" value={passenger.firstName} onChange={(value) => updatePassenger(index, 'firstName', value)} required />
-                  <label className="grid gap-1 text-sm font-semibold text-slate-700">
-                    Loại khách
-                    <select value={passenger.passengerType} onChange={(event) => updatePassenger(index, 'passengerType', event.target.value)} className="h-11 rounded border border-slate-300 bg-white px-3">
-                      <option value="ADULT">Người lớn</option>
-                      <option value="CHILD">Trẻ em</option>
-                      <option value="INFANT">Em bé</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm font-semibold text-slate-700">
-                    Giới tính
-                    <select value={passenger.gender} onChange={(event) => updatePassenger(index, 'gender', event.target.value)} className="h-11 rounded border border-slate-300 bg-white px-3">
-                      <option value="MALE">Nam</option>
-                      <option value="FEMALE">Nữ</option>
-                    </select>
-                  </label>
-                  <Field label="CCCD/Hộ chiếu" value={passenger.idNumber} onChange={(value) => updatePassenger(index, 'idNumber', value)} />
-                </div>
+                <span className={`text-xs font-black uppercase tracking-wider ${currentStep >= step.id ? 'text-ink' : 'text-slate-400'}`}>{step.name}</span>
+                {step.id < 4 && <ChevronRight size={14} className="text-slate-200" />}
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center gap-2">
-            <Armchair className="text-brand-600" size={20} />
-            <h2 className="text-xl font-bold text-ink">Chọn chỗ ngồi trên máy bay</h2>
-          </div>
-          <SeatSelection 
-            flightId={flightId} 
-            passengerCount={passengers.length} 
-            selectedSeats={selectedSeats} 
-            onSelect={setSelectedSeats} 
-          />
-        </section>
-
-        <section className="rounded border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center gap-2">
-            <ContactRound className="text-brand-600" size={20} />
-            <h2 className="text-xl font-bold text-ink">Thông tin liên hệ nhận vé</h2>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Field label="Người liên hệ" value={contactName} onChange={setContactName} required />
-            <Field label="Email nhận vé" type="email" value={contactEmail} onChange={setContactEmail} required />
-            <Field label="Số điện thoại" value={contactPhone ?? ''} onChange={setContactPhone} required />
-          </div>
-          <div className="mt-4 max-w-sm">
-            <Field label="Mã khuyến mãi" value={promotionCode} onChange={(value) => setPromotionCode(value.toUpperCase())} />
-            <p className="mt-2 text-xs text-slate-500">Có thể dùng mã mẫu BAYNGAY hoặc DAILY100 sau khi seed dữ liệu.</p>
-          </div>
-        </section>
-
-        <button disabled={loading || !flightId} className="flex h-12 items-center justify-center gap-2 rounded bg-coral font-semibold text-white shadow-sm hover:bg-[#df4f43] disabled:opacity-60">
-          {loading ? 'Đang giữ chỗ...' : 'Giữ chỗ và tạo đơn'}
-          <ArrowRight size={18} />
-        </button>
-      </form>
-
-      <aside className="h-fit rounded border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Tóm tắt chuyến bay</p>
-        {flight ? (
-          <div className="mt-4 grid gap-4">
-            <div className="rounded bg-slate-50 p-4">
-              <div className="flex items-center gap-2 font-bold text-ink">
-                <Plane size={18} /> {flight.airline.name}
-              </div>
-              <p className="mt-1 text-sm text-slate-500">{flight.flightNumber} · {flight.aircraft || 'Máy bay thân hẹp'}</p>
-              <p className="mt-4 font-semibold text-ink">
-                {flight.route.departure.code} → {flight.route.arrival.code}
-              </p>
-              <p className="text-sm text-slate-500">
-                {formatDate(flight.departureTime)} · {formatTime(flight.departureTime)} - {formatTime(flight.arrivalTime)}
-              </p>
+          {timeLeft !== null && (
+            <div className="flex items-center gap-2 rounded-full bg-orange-50 px-4 py-1.5 text-orange-700 border border-orange-100">
+              <Timer size={14} />
+              <span className="text-sm font-black">{formatCountdown(timeLeft)}</span>
             </div>
-            <div className="grid gap-2 text-sm text-slate-600">
-              <SummaryLine label="Hạng ghế" value={classType === 'BUSINESS' ? 'Thương gia' : 'Phổ thông'} />
-              <SummaryLine label="Hành khách" value={`${passengers.length} khách`} />
-              <SummaryLine label="Hành lý" value={`${selectedClass?.baggageKg ?? 0}kg/người`} />
-              <SummaryLine label="Giá tạm tính" value={estimatedTotal > 0 ? currency.format(estimatedTotal) : 'Đang tính'} />
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-slate-500">Đang tải thông tin chuyến bay...</p>
-        )}
+          )}
+        </div>
+      </div>
 
-        {booking && (
-          <div className="mt-5 rounded border border-emerald-200 bg-emerald-50 p-4">
-            <div className="flex items-center gap-2 font-semibold text-emerald-700">
-              <CircleCheck size={18} /> Đã tạo đơn
+      <main className="mx-auto mt-8 grid max-w-7xl gap-8 px-4 lg:grid-cols-[1fr_380px]">
+        <div className="space-y-6">
+          <AnimatePresence mode="wait">
+            {currentStep === 1 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+                <div className="rounded-[40px] border border-slate-200 bg-white p-8 md:p-12 shadow-sm">
+                  <h2 className="text-2xl font-black text-ink mb-8">Thông tin hành khách</h2>
+                  <div className="space-y-8">
+                    {passengers.map((p, i) => (
+                      <div key={i} className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
+                         <div className="flex items-center gap-2 font-black text-ink mb-6">
+                            <span className="h-6 w-6 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-[10px]">{i + 1}</span>
+                            Hành khách {i + 1}
+                         </div>
+                         <div className="grid gap-6 md:grid-cols-2">
+                            <Field label="Họ (Vd: NGUYEN)" value={p.lastName} onChange={(v) => updatePassenger(i, { lastName: v.toUpperCase() })} />
+                            <Field label="Tên & Tên đệm" value={p.firstName} onChange={(v) => updatePassenger(i, { firstName: v.toUpperCase() })} />
+                            <div className="grid gap-2">
+                               <label className="text-[10px] font-black uppercase text-slate-400">Giới tính</label>
+                               <div className="flex gap-2">
+                                  {['MALE', 'FEMALE'].map(g => (
+                                    <button key={g} type="button" onClick={() => updatePassenger(i, { gender: g as any })} className={`flex-1 h-12 rounded-xl border font-bold text-sm transition-all ${p.gender === g ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-400'}`}>
+                                      {g === 'MALE' ? 'Nam' : 'Nữ'}
+                                    </button>
+                                  ))}
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[40px] border border-slate-200 bg-white p-8 md:p-12 shadow-sm">
+                   <h2 className="text-2xl font-black text-ink mb-8">Thông tin liên hệ nhận vé</h2>
+                   <div className="grid gap-6 md:grid-cols-3">
+                      <Field label="Email nhận vé" value={contactEmail} onChange={setContactEmail} />
+                      <Field label="Số điện thoại" value={contactPhone} onChange={setContactPhone} />
+                      <Field label="Tên người nhận" value={contactName} onChange={setContactName} />
+                   </div>
+                </div>
+
+                <button onClick={() => setCurrentStep(2)} className="h-16 w-full rounded-3xl bg-brand-600 font-black text-white shadow-xl shadow-brand-100 flex items-center justify-center gap-3">
+                   TIẾP THEO: DỊCH VỤ THÊM <ArrowRight size={20} />
+                </button>
+              </motion.div>
+            )}
+
+            {currentStep === 2 && extras && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+                <div className="rounded-[40px] border border-slate-200 bg-white p-8 md:p-12 shadow-sm">
+                   <h2 className="text-2xl font-black text-ink mb-4">Hành lý & Suất ăn</h2>
+                   <p className="text-slate-500 mb-8 font-medium">Mua thêm hành lý và dịch vụ để tiết kiệm lên đến 40% so với mua tại sân bay.</p>
+                   
+                   <div className="space-y-12">
+                      {passengers.map((p, i) => (
+                        <div key={i} className="space-y-6">
+                           <div className="flex items-center gap-2 font-black text-ink">
+                              <UserRound size={18} className="text-brand-600" />
+                              HK {i + 1}: {p.lastName} {p.firstName}
+                           </div>
+                           
+                           <div className="grid gap-6 lg:grid-cols-2">
+                              {/* Baggage */}
+                              <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
+                                 <div className="flex items-center gap-2 text-sm font-black text-ink mb-4">
+                                    <Luggage size={16} /> Hành lý ký gửi
+                                 </div>
+                                 <select 
+                                   value={p.baggageId || ''} 
+                                   onChange={(e) => updatePassenger(i, { baggageId: e.target.value })}
+                                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold outline-none focus:border-brand-500"
+                                 >
+                                    <option value="">Chưa chọn hành lý</option>
+                                    {extras.baggageOptions.map(bg => (
+                                      <option key={bg.id} value={bg.id}>+ {bg.weightKg}kg ({currency.format(bg.priceVND)})</option>
+                                    ))}
+                                 </select>
+                              </div>
+
+                              {/* Services */}
+                              <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
+                                 <div className="flex items-center gap-2 text-sm font-black text-ink mb-4">
+                                    <Utensils size={16} /> Suất ăn & Dịch vụ
+                                 </div>
+                                 <div className="flex flex-wrap gap-2">
+                                    {extras.extraServices.map(sv => (
+                                      <button
+                                        key={sv.id}
+                                        onClick={() => {
+                                          const next = p.serviceIds.includes(sv.id) ? p.serviceIds.filter(id => id !== sv.id) : [...p.serviceIds, sv.id];
+                                          updatePassenger(i, { serviceIds: next });
+                                        }}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all ${p.serviceIds.includes(sv.id) ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-200'}`}
+                                      >
+                                        {sv.name} (+{currency.format(sv.priceVND)})
+                                      </button>
+                                    ))}
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="flex gap-4">
+                   <button onClick={() => setCurrentStep(1)} className="h-16 flex-1 rounded-3xl border border-slate-200 bg-white font-black text-slate-500">QUAY LẠI</button>
+                   <button onClick={() => setCurrentStep(3)} className="h-16 flex-[2] rounded-3xl bg-brand-600 font-black text-white shadow-xl shadow-brand-100">TIẾP THEO: CHỌN GHẾ NGỒI</button>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 3 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+                 <SeatSelection 
+                   flightId={flightId} 
+                   passengerCount={passengers.length} 
+                   selectedSeats={passengers.map(p => p.seat).filter(Boolean) as any} 
+                   onSelect={(seats) => {
+                      setPassengers(prev => prev.map((p, i) => ({ ...p, seat: seats[i] || undefined })));
+                   }} 
+                 />
+                 <div className="flex gap-4">
+                    <button onClick={() => setCurrentStep(2)} className="h-16 flex-1 rounded-3xl border border-slate-200 bg-white font-black text-slate-500">QUAY LẠI</button>
+                    <button onClick={handleCreateBooking} disabled={loading} className="h-16 flex-[2] rounded-3xl bg-brand-600 font-black text-white shadow-xl shadow-brand-100 flex items-center justify-center gap-3">
+                       {loading ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN & GIỮ CHỖ'} <ArrowRight size={20} />
+                    </button>
+                 </div>
+              </motion.div>
+            )}
+
+            {currentStep === 4 && booking && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+                 <div className="rounded-[40px] border border-emerald-200 bg-emerald-50/50 p-12 text-center">
+                    <div className="mx-auto mb-6 h-20 w-20 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                       <Check size={40} strokeWidth={4} />
+                    </div>
+                    <h2 className="text-3xl font-black text-emerald-900 italic">GIỮ CHỖ THÀNH CÔNG</h2>
+                    <p className="mt-4 text-emerald-700 font-medium">Mã đặt vé của bạn là: <span className="font-black text-emerald-900 text-2xl">{booking.bookingCode}</span></p>
+                    <div className="mt-8 mx-auto w-fit rounded-full bg-white px-8 py-3 shadow-sm border border-emerald-100 flex items-center gap-3 text-emerald-900">
+                       <span className="text-xs font-black uppercase tracking-widest">Tổng tiền</span>
+                       <span className="text-2xl font-black">{currency.format(booking.totalAmountVND)}</span>
+                    </div>
+                 </div>
+                 
+                 <Link href={`/payment?bookingId=${booking.id}`} className="h-20 w-full rounded-[40px] bg-coral font-black text-white text-xl shadow-2xl shadow-coral/20 flex items-center justify-center gap-3 transition-transform hover:-translate-y-1">
+                    THANH TOÁN NGAY <ArrowRight size={28} />
+                 </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <aside className="space-y-6">
+          <div className="sticky top-24 space-y-6">
+            <div className="overflow-hidden rounded-[40px] border border-slate-200 bg-white shadow-sm">
+               <div className="bg-slate-900 p-8 text-white">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Tóm tắt hành trình</p>
+                  {flight && (
+                    <div className="mt-4 flex items-center justify-between">
+                       <div className="text-2xl font-black italic">{flight.route.departure.code} → {flight.route.arrival.code}</div>
+                       <Plane size={24} className="text-brand-400" />
+                    </div>
+                  )}
+               </div>
+               <div className="p-8 space-y-6">
+                  {flight ? (
+                    <>
+                      <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                         <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center font-black text-brand-600 text-xs shadow-sm">{flight.airline.code}</div>
+                         <div>
+                            <p className="text-sm font-black text-ink">{flight.airline.name}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">{flight.flightNumber} · {flight.aircraft || 'A321'}</p>
+                         </div>
+                      </div>
+                      <div className="space-y-4">
+                         <Line label="Người lớn" value={`${passengers.length} HK`} />
+                         <Line label="Hạng vé" value={classType === 'BUSINESS' ? 'Thương gia' : 'Phổ thông'} />
+                         <div className="pt-4 border-t border-dashed border-slate-200">
+                            <div className="flex items-center justify-between">
+                               <span className="text-sm font-black text-slate-400 uppercase">Tổng cộng</span>
+                               <span className="text-2xl font-black text-coral">{currency.format(totalAmount)}</span>
+                            </div>
+                         </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-40 w-full animate-pulse bg-slate-50 rounded-3xl"></div>
+                  )}
+               </div>
             </div>
-            <p className="mt-3 text-sm text-slate-600">Mã đặt vé</p>
-            <p className="text-2xl font-bold text-brand-700">{booking.bookingCode}</p>
-            <p className="mt-2 font-semibold text-ink">{currency.format(booking.totalAmountVND)}</p>
-            <Link href={`/payment?bookingId=${booking.id}`} className="mt-4 flex h-11 items-center justify-center rounded bg-brand-600 font-semibold text-white">
-              Thanh toán ngay
-            </Link>
           </div>
-        )}
-      </aside>
-    </main>
+        </aside>
+      </main>
+    </div>
   );
 }
 
-function Field({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
+function Field({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
   return (
-    <label className="grid gap-1 text-sm font-semibold text-slate-700">
-      {label}
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} className="h-11 rounded border border-slate-300 bg-white px-3 text-ink outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100" />
-    </label>
+    <div className="grid gap-2">
+       <label className="text-[10px] font-black uppercase text-slate-400 pl-1">{label}</label>
+       <input value={value} onChange={e => onChange(e.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-ink outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all" />
+    </div>
   );
 }
 
-function SummaryLine({ label, value }: { label: string; value: string }) {
+function Line({ label, value }: { label: string, value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
-      <span>{label}</span>
-      <span className="font-semibold text-ink">{value}</span>
+    <div className="flex items-center justify-between text-sm">
+       <span className="font-bold text-slate-400">{label}</span>
+       <span className="font-black text-ink">{value}</span>
     </div>
   );
 }

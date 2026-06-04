@@ -42,6 +42,28 @@ export class BookingsService {
     const markup = calculateMarkup(baseAmount, Number(rule?.percent ?? 0), toNumber(rule?.fixedVND ?? 0));
     const discount = await this.calculatePromotionDiscount(dto.promotionCode, baseAmount + markup);
     const hold = await this.airlineProvider.holdSeats(dto.flightId, dto.passengers.length);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    let totalAddons = 0;
+    dto.passengers.forEach(p => {
+      if (p.seatNumber) {
+        // Logic to find seat price based on tier (mocking for now)
+        const row = parseInt(p.seatNumber.match(/\d+/)?.[0] || '10');
+        if (row <= 4) totalAddons += 150000;
+        else if (row <= 9) totalAddons += 50000;
+      }
+      if (p.baggageId) {
+        // Find baggage price from mock or DB
+        totalAddons += 200000; // Simplified for now
+      }
+      if (p.extraServices) {
+        p.extraServices.forEach((s: any) => {
+          totalAddons += Number(s.price || 0);
+        });
+      }
+    });
+
     const user = dto.userId
       ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
       : await this.prisma.user.findUnique({ where: { email: dto.contactEmail } });
@@ -51,6 +73,8 @@ export class BookingsService {
         where: { id: flightClass.id },
         data: { availableSeats: { decrement: dto.passengers.length } }
       });
+
+      const finalTotal = baseAmount + markup - discount.amount + totalAddons;
 
       return tx.booking.create({
         data: {
@@ -63,8 +87,9 @@ export class BookingsService {
           baseAmountVND: baseAmount,
           markupVND: markup,
           discountVND: discount.amount,
-          totalAmountVND: baseAmount + markup - discount.amount,
+          totalAmountVND: finalTotal,
           providerPnr: hold.pnrCode,
+          expiresAt: expiresAt,
           items: {
             create: dto.passengers.map((passenger) => ({
               flightClassId: flightClass.id,
@@ -74,6 +99,8 @@ export class BookingsService {
               gender: passenger.gender,
               idNumber: passenger.idNumber,
               seatNumber: passenger.seatNumber,
+              baggageExtraKg: passenger.baggageExtraKg || 0,
+              extraServices: passenger.extraServices,
               priceVND: perPassengerBase
             }))
           }
