@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { CircleCheck, Luggage, PlaneTakeoff, Timer, ShieldCheck, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FlightResult } from '@/lib/api';
-import { currency, formatDuration, formatTime } from '@/lib/format';
+import { currency, formatDuration, formatPrice, formatTime } from '@/lib/format';
 
 export function FlightCard({ flight }: { flight: FlightResult }) {
   return (
     <motion.article 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, shadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
+      whileHover={{ y: -4, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
       className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-brand-300"
     >
       <div className="absolute top-0 right-0 p-2">
@@ -92,7 +92,7 @@ export function FlightCard({ flight }: { flight: FlightResult }) {
         <div className="relative flex flex-col items-stretch rounded-2xl bg-slate-50/80 p-6 lg:items-end group-hover:bg-brand-50/30 transition-colors">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tổng cộng mỗi khách</p>
           <div className="mt-1 flex items-baseline gap-1">
-             <p className="text-3xl font-black text-coral">{currency.format(flight.displayPriceVND).split(' ')[0]}</p>
+             <p className="text-3xl font-black text-coral">{formatPrice(flight.displayPriceVND)}</p>
              <span className="text-sm font-bold text-coral">VND</span>
           </div>
           <p className="mt-1 text-[10px] font-medium text-slate-400 italic">Đã bao gồm đầy đủ thuế & phí</p>

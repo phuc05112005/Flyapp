@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { ClassType } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ClassType, FlightStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { calculateMarkup, toNumber } from '../common/utils/money';
 import { SearchFlightsDto } from './dto/search-flights.dto';
@@ -63,7 +63,7 @@ export class FlightsService {
     return this.prisma.flight.findMany({
       where: {
         departureTime: { gte: start, lte: end },
-        status: 'SCHEDULED',
+        status: FlightStatus.SCHEDULED,
         airline: dto.airline ? { code: dto.airline } : undefined,
         route: {
           departure: { code: dto.from.toUpperCase() },
@@ -85,7 +85,7 @@ export class FlightsService {
   }
 
   async findById(id: string) {
-    return this.prisma.flight.findUniqueOrThrow({
+    const flight = await this.prisma.flight.findUnique({
       where: { id },
       include: {
         airline: true,
@@ -93,16 +93,19 @@ export class FlightsService {
         classes: true
       }
     });
+    if (!flight) throw new NotFoundException('Không tìm thấy chuyến bay.');
+    return flight;
   }
 
   async getSeats(flightId: string) {
-    const flight = await this.prisma.flight.findUniqueOrThrow({
+    const flight = await this.prisma.flight.findUnique({
       where: { id: flightId },
       include: { 
         classes: true,
         airline: true
       }
     });
+    if (!flight) throw new NotFoundException('Không tìm thấy chuyến bay.');
 
     const bookings = await this.prisma.booking.findMany({
       where: { flightId, status: { not: 'CANCELLED' } },
@@ -119,10 +122,10 @@ export class FlightsService {
     ]);
 
     // Default Tiers if not configured
-    const seatTiers = dbSeatTiers.length > 0 ? dbSeatTiers.map(t => ({
+    const seatTiers = dbSeatTiers.length > 0 ? dbSeatTiers.map((t) => ({
       name: t.name,
       priceVND: toNumber(t.priceVND),
-      rows: t.rowRange?.split(',').flatMap(r => {
+      rows: t.rowRange?.split(',').flatMap((r) => {
         if (r.includes('-')) {
           const [start, end] = r.split('-').map(Number);
           return Array.from({ length: end - start + 1 }, (_, i) => i + start);
@@ -136,7 +139,7 @@ export class FlightsService {
       { name: 'Extra Legroom', priceVND: 150000, rows: [1, 2, 3, 4], color: '#f59e0b' }
     ];
 
-    const baggageOptions = dbBaggageOptions.length > 0 ? dbBaggageOptions.map(b => ({
+    const baggageOptions = dbBaggageOptions.length > 0 ? dbBaggageOptions.map((b) => ({
       id: b.id,
       weightKg: b.weightKg,
       priceVND: toNumber(b.priceVND)
@@ -145,7 +148,7 @@ export class FlightsService {
       { id: 'def-bg-2', weightKg: 20, priceVND: 250000 }
     ];
 
-    const extraServices = dbExtraServices.length > 0 ? dbExtraServices.map(s => ({
+    const extraServices = dbExtraServices.length > 0 ? dbExtraServices.map((s) => ({
       id: s.id,
       name: s.name,
       priceVND: toNumber(s.priceVND),
@@ -155,18 +158,32 @@ export class FlightsService {
     ];
 
     // Simple layout generation based on aircraft type
-    let layout = {
+    const layout = {
       rows: 30,
       cols: ['A', 'B', 'C', 'D', 'E', 'F'],
       aisleAfter: [3]
     };
 
-  listAirports() {
+    return { layout, occupiedSeats, seatTiers, baggageOptions, extraServices };
+  }
+
+  async listAirports() {
     return this.prisma.airport.findMany({ orderBy: [{ city: 'asc' }, { code: 'asc' }] });
   }
 
-  listAirlines() {
+  async listAirlines() {
     return this.prisma.airline.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+  }
+
+  async findAll() {
+    return this.prisma.flight.findMany({
+      include: {
+        airline: true,
+        route: { include: { departure: true, arrival: true } },
+        classes: true
+      },
+      orderBy: { departureTime: 'desc' }
+    });
   }
 
   private findBestMarkupRule(airlineCode: string, routeId: string, classType: ClassType) {

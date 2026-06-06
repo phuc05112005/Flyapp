@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -7,17 +8,62 @@ import {
   Download,
   Calendar,
   ArrowRight,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react';
 import { currency, formatDate, formatTime } from '@/lib/format';
+import { apiGet } from '@/lib/api';
 
-const MOCK_BOOKINGS = [
-  { id: '1', code: 'VF9K2L', customer: 'Nguyễn Văn An', email: 'an.nv@gmail.com', flight: 'VN317', route: 'HAN → SGN', date: '2026-06-04', amount: 2450000, status: 'PAID' },
-  { id: '2', code: 'VFX8P1', customer: 'Trần Thị Bình', email: 'binh.tt@yahoo.com', flight: 'VJ122', route: 'SGN → DAD', date: '2026-06-04', amount: 1890000, status: 'PENDING' },
-  { id: '3', code: 'VF5M0Q', customer: 'Lê Hoàng Nam', email: 'nam.lh@outlook.com', flight: 'QH450', route: 'HAN → PQC', date: '2026-06-03', amount: 3120000, status: 'CONFIRMED' },
-];
+type Booking = {
+  id: string;
+  bookingCode: string;
+  contactName: string;
+  contactEmail: string;
+  totalAmountVND: number;
+  status: string;
+  createdAt: string;
+  flight: {
+    flightNumber: string;
+    route: {
+      departure: { code: string };
+      arrival: { code: string };
+    };
+  };
+};
 
 export function BookingHistory() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    apiGet<Booking[]>('/admin/bookings')
+      .then((data) => {
+        if (isMounted.current) {
+          setBookings(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted.current) setLoading(false);
+      });
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const filtered = bookings.filter(b => 
+    b.bookingCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center rounded-[32px] border border-dashed border-slate-200 bg-white">
+      <Loader2 className="animate-spin text-brand-600" size={32} />
+    </div>
+  );
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -28,8 +74,10 @@ export function BookingHistory() {
          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
-              placeholder="Tìm mã đơn, tên, email..." 
-              className="h-12 w-full rounded-2xl bg-white border border-slate-200 pl-12 pr-4 text-sm font-bold outline-none focus:border-brand-500 shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm mã đặt vé, tên, email..." 
+              className="h-12 w-full rounded-2xl bg-white border border-slate-200 pl-12 pr-4 text-sm font-bold outline-none focus:border-brand-500 shadow-sm transition-all"
             />
          </div>
          <div className="flex items-center gap-3">
@@ -48,7 +96,7 @@ export function BookingHistory() {
          <table className="w-full text-left border-collapse">
             <thead>
                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã đơn / Khách hàng</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã đặt vé / Khách hàng</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Chuyến bay</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày đặt</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng tiền</th>
@@ -57,30 +105,31 @@ export function BookingHistory() {
                </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-               {MOCK_BOOKINGS.map((booking) => (
+               {filtered.map((booking) => (
                  <tr key={booking.id} className="hover:bg-slate-50/30 transition-colors">
                     <td className="px-8 py-5">
                        <div>
-                          <p className="text-sm font-black text-brand-600">#{booking.code}</p>
-                          <p className="text-sm font-bold text-ink mt-0.5">{booking.customer}</p>
-                          <p className="text-[10px] font-medium text-slate-400">{booking.email}</p>
+                          <p className="text-sm font-black text-brand-600">#{booking.bookingCode}</p>
+                          <p className="text-sm font-bold text-ink mt-0.5">{booking.contactName}</p>
+                          <p className="text-[10px] font-medium text-slate-400">{booking.contactEmail}</p>
                        </div>
                     </td>
                     <td className="px-8 py-5">
-                       <p className="text-sm font-black text-ink">{booking.flight}</p>
-                       <p className="text-[10px] font-bold text-slate-400 uppercase">{booking.route}</p>
+                       <p className="text-sm font-black text-ink">{booking.flight.flightNumber}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase">{booking.flight.route.departure.code} → {booking.flight.route.arrival.code}</p>
                     </td>
                     <td className="px-8 py-5 text-sm font-bold text-ink">
-                       {booking.date}
+                       {formatDate(booking.createdAt)}
                     </td>
                     <td className="px-8 py-5 text-sm font-black text-ink">
-                       {currency.format(booking.amount)}
+                       {currency.format(Number(booking.totalAmountVND))}
                     </td>
                     <td className="px-8 py-5">
                        <span className={`px-3 py-1 rounded-full text-[10px] font-black border ${
                          booking.status === 'PAID' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                         booking.status === 'CONFIRMED' ? 'bg-brand-50 text-brand-600 border-brand-100' :
                          booking.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                         'bg-brand-50 text-brand-600 border-brand-100'
+                         'bg-rose-50 text-rose-600 border-rose-100'
                        }`}>
                           {booking.status}
                        </span>
@@ -90,6 +139,13 @@ export function BookingHistory() {
                     </td>
                  </tr>
                ))}
+               {filtered.length === 0 && (
+                 <tr>
+                    <td colSpan={6} className="px-8 py-20 text-center text-slate-400 font-medium">
+                       Không tìm thấy lượt đặt vé nào.
+                    </td>
+                 </tr>
+               )}
             </tbody>
          </table>
       </div>

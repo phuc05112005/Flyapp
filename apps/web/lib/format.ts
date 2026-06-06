@@ -6,6 +6,12 @@ export const currency = new Intl.NumberFormat('vi-VN', {
   currency: 'VND'
 });
 
+export const number = new Intl.NumberFormat('vi-VN');
+
+export function formatPrice(value: number) {
+  return number.format(value);
+}
+
 export function formatDate(value: string | Date) {
   return format(new Date(value), 'dd/MM/yyyy', { locale: vi });
 }

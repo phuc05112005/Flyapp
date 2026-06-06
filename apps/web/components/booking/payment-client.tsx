@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiPost } from '@/lib/api';
-import { currency, formatDate, formatTime } from '@/lib/format';
+import { currency, formatDate, formatPrice, formatTime } from '@/lib/format';
 
 type PaymentResult = {
   paymentUrl: string | null;
@@ -307,7 +307,9 @@ export function PaymentClient() {
                    <div className="pt-4 border-t border-dashed border-slate-200">
                       <div className="flex items-center justify-between">
                          <span className="text-lg font-black text-ink">Tổng tiền</span>
-                         <span className="text-2xl font-black text-coral">VND</span>
+                         <span className="text-2xl font-black text-coral">
+                           {result?.bankTransfer ? `${formatPrice(result.bankTransfer.amountVND)} VND` : 'VND'}
+                         </span>
                       </div>
                       <p className="mt-4 text-[11px] leading-relaxed text-slate-400 font-medium italic">
                          Sau khi thanh toán thành công, hệ thống sẽ tự động xuất vé và gửi thông báo qua Email/SMS của bạn.
@@ -324,7 +326,7 @@ export function PaymentClient() {
                 <div>
                    <p className="text-xs font-black text-orange-900 uppercase">Lưu ý quan trọng</p>
                    <p className="mt-1 text-[11px] leading-relaxed text-orange-800/70 font-medium">
-                     Nếu quá 15 phút không thanh toán, hệ thống sẽ tự động hủy lệnh giữ chỗ để nhường cho khách hàng khác.
+                     Nếu quá 15 phút không thanh toán, hệ thống sẽ tự động hủy giữ chỗ để nhường cho khách hàng khác.
                    </p>
                 </div>
              </div>

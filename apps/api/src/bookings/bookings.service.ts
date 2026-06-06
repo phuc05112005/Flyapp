@@ -166,13 +166,13 @@ export class BookingsService {
     const now = new Date();
     const promotion = await this.prisma.promotion.findUnique({ where: { code: code.trim().toUpperCase() } });
     if (!promotion || !promotion.isActive || promotion.startDate > now || promotion.endDate < now) {
-      throw new BadRequestException('Ma khuyen mai khong hop le hoac da het han.');
+      throw new BadRequestException('Mã khuyến mãi không hợp lệ hoặc đã hết hạn.');
     }
     if (promotion.usageLimit && promotion.usageCount >= promotion.usageLimit) {
-      throw new BadRequestException('Ma khuyen mai da het luot su dung.');
+      throw new BadRequestException('Mã khuyến mãi đã hết lượt sử dụng.');
     }
     if (promotion.minOrderVND && orderAmount < toNumber(promotion.minOrderVND)) {
-      throw new BadRequestException('Don hang chua dat gia tri toi thieu cua ma khuyen mai.');
+      throw new BadRequestException('Yêu cầu đặt vé chưa đạt giá trị tối thiểu để áp dụng mã khuyến mãi.');
     }
 
     const rawDiscount = promotion.discountType === DiscountType.PERCENTAGE

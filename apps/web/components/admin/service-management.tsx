@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Utensils, 
@@ -8,41 +8,70 @@ import {
   Plus, 
   Trash2, 
   Edit2, 
-  Settings2,
-  Check,
-  ChevronDown,
-  Building2,
-  Info
+  Building2, 
+  Info, 
+  Loader2 
 } from 'lucide-react';
 import { currency } from '@/lib/format';
 import { apiGet } from '@/lib/api';
 
 type Airline = { id: string; code: string; name: string };
+type ExtraService = { id: string; name: string; priceVND: number; category: string };
+type BaggageOption = { id: string; weightKg: number; priceVND: number };
 
 export function ServiceManagement() {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [selectedAirline, setSelectedAirline] = useState<Airline | null>(null);
+  const [services, setServices] = useState<ExtraService[]>([]);
+  const [baggage, setBaggage] = useState<BaggageOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    apiGet<Airline[]>('/flights/airlines').then((res) => {
+    isMounted.current = true;
+    apiGet<Airline[]>('/airlines').then((res) => {
+      if (!isMounted.current) return;
       setAirlines(res);
       if (res.length > 0) setSelectedAirline(res[0]);
       setLoading(false);
+    }).catch(() => {
+      if (isMounted.current) setLoading(false);
     });
+    return () => { isMounted.current = false; };
   }, []);
 
-  const [services, setServices] = useState([
-    { id: '1', name: 'Suất ăn nóng tiêu chuẩn', price: 65000, category: 'MEAL', airlineId: 'VN' },
-    { id: '2', name: 'Combo snack & nước suối', price: 45000, category: 'MEAL', airlineId: 'VJ' },
-  ]);
+  const airlineId = selectedAirline?.id;
+
+  useEffect(() => {
+    if (airlineId) {
+      setDataLoading(true);
+      Promise.all([
+        apiGet<ExtraService[]>(`/admin/airlines/${airlineId}/services`),
+        apiGet<BaggageOption[]>(`/admin/airlines/${airlineId}/baggage`)
+      ]).then(([s, b]) => {
+        if (!isMounted.current) return;
+        setServices(s);
+        setBaggage(b);
+        setDataLoading(false);
+      }).catch(() => {
+        if (isMounted.current) setDataLoading(false);
+      });
+    }
+  }, [airlineId]);
+
+  const selectAirline = useCallback((airline: Airline) => {
+    setSelectedAirline(airline);
+  }, []);
+
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center rounded-[32px] border border-dashed border-slate-200 bg-white">
+      <Loader2 className="animate-spin text-brand-600" size={32} />
+    </div>
+  );
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
+    <div className="space-y-8">
       {/* Airline Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
          <div>
@@ -53,11 +82,11 @@ export function ServiceManagement() {
             <p className="mt-1 text-sm text-slate-500 font-medium">Chọn hãng để thiết lập chính sách hành lý và dịch vụ riêng biệt.</p>
          </div>
          
-         <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
             {airlines.map((airline) => (
                <button
                  key={airline.id}
-                 onClick={() => setSelectedAirline(airline)}
+                 onClick={() => selectAirline(airline)}
                  className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${selectedAirline?.id === airline.id ? 'bg-white text-brand-600 shadow-sm border border-brand-100' : 'text-slate-500 hover:text-slate-700'}`}
                >
                  {airline.code} - {airline.name}
@@ -73,6 +102,7 @@ export function ServiceManagement() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
             className="grid gap-8 lg:grid-cols-2"
           >
             {/* Baggage Config */}
@@ -91,15 +121,22 @@ export function ServiceManagement() {
                
                <div className="space-y-4">
                   <PolicyNote text={selectedAirline.code === 'VJ' ? 'Lưu ý: Hãng giá rẻ, mặc định 0kg hành lý ký gửi.' : 'Lưu ý: Hãng truyền thống, thường có sẵn 23kg hành lý.'} />
-                  {[15, 20, 25, 30].map(w => (
-                    <div key={w} className="flex items-center justify-between p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
-                       <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center font-black text-ink shadow-sm border border-slate-100">{w}kg</div>
-                          <p className="text-sm font-black text-ink">{currency.format(w * 15000)}</p>
-                       </div>
-                       <button className="p-2 text-slate-400 hover:text-brand-600 transition-colors"><Edit2 size={16} /></button>
-                    </div>
-                  ))}
+                  {dataLoading ? (
+                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-200" /></div>
+                  ) : (
+                    baggage.map(b => (
+                      <div key={b.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
+                         <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center font-black text-ink shadow-sm border border-slate-100">{b.weightKg}kg</div>
+                            <p className="text-sm font-black text-ink">{currency.format(Number(b.priceVND))}</p>
+                         </div>
+                         <button className="p-2 text-slate-400 hover:text-brand-600 transition-colors"><Edit2 size={16} /></button>
+                      </div>
+                    ))
+                  )}
+                  {!dataLoading && baggage.length === 0 && (
+                    <p className="text-center text-slate-400 py-10 text-sm">Chưa có cấu hình hành lý.</p>
+                  )}
                </div>
             </div>
 
@@ -118,18 +155,22 @@ export function ServiceManagement() {
                </div>
 
                <div className="space-y-4">
-                  {services.filter(s => s.airlineId === (selectedAirline.code === 'VJ' ? 'VJ' : 'VN')).map(sv => (
-                    <div key={sv.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
-                       <div>
-                          <p className="text-sm font-black text-ink">{sv.name}</p>
-                          <span className="text-[10px] font-black text-emerald-600 uppercase mt-1 block">{currency.format(sv.price)}</span>
-                       </div>
-                       <button className="p-2 text-slate-400 hover:text-brand-600 transition-colors"><Edit2 size={16} /></button>
-                    </div>
-                  ))}
-                  <div className="p-4 rounded-2xl border-2 border-dashed border-slate-100 text-center">
-                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Thêm dịch vụ mới cho {selectedAirline.name}</p>
-                  </div>
+                  {dataLoading ? (
+                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-200" /></div>
+                  ) : (
+                    services.map(sv => (
+                      <div key={sv.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
+                         <div>
+                            <p className="text-sm font-black text-ink">{sv.name}</p>
+                            <span className="text-[10px] font-black text-emerald-600 uppercase mt-1 block">{currency.format(Number(sv.priceVND))}</span>
+                         </div>
+                         <button className="p-2 text-slate-400 hover:text-brand-600 transition-colors"><Edit2 size={16} /></button>
+                      </div>
+                    ))
+                  )}
+                  {!dataLoading && services.length === 0 && (
+                    <p className="text-center text-slate-400 py-10 text-sm">Chưa có cấu hình dịch vụ.</p>
+                  )}
                </div>
             </div>
 
@@ -150,19 +191,20 @@ export function ServiceManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
-function PolicyNote({ text }: { text: string }) {
+const PolicyNote = memo(({ text }: { text: string }) => {
   return (
     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-6">
        <p className="text-xs font-bold text-slate-500 leading-relaxed italic">{text}</p>
     </div>
   );
-}
+});
+PolicyNote.displayName = 'PolicyNote';
 
-function SeatPriceCard({ label, price, rows, color }: any) {
+const SeatPriceCard = memo(({ label, price, rows, color }: any) => {
   return (
     <div className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col gap-4">
        <div className="flex items-center gap-3">
@@ -178,4 +220,5 @@ function SeatPriceCard({ label, price, rows, color }: any) {
        </div>
     </div>
   );
-}
+});
+SeatPriceCard.displayName = 'SeatPriceCard';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plane, 
@@ -13,18 +13,52 @@ import {
   ArrowRight,
   Edit2,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { currency, formatDate, formatTime } from '@/lib/format';
+import { apiGet } from '@/lib/api';
 
-const MOCK_FLIGHTS = [
-  { id: '1', number: 'VN317', airline: 'Vietnam Airlines', from: 'HAN', to: 'SGN', departure: '2026-06-10T07:20:00', arrival: '2026-06-10T09:30:00', price: 1250000, status: 'SCHEDULED' },
-  { id: '2', number: 'VJ122', airline: 'VietJet Air', from: 'SGN', to: 'DAD', departure: '2026-06-10T10:45:00', arrival: '2026-06-10T12:05:00', price: 890000, status: 'SCHEDULED' },
-  { id: '3', number: 'QH450', airline: 'Bamboo Airways', from: 'HAN', to: 'PQC', departure: '2026-06-10T15:00:00', arrival: '2026-06-10T17:10:00', price: 2100000, status: 'DELAYED' },
-];
+type Flight = {
+  id: string;
+  flightNumber: string;
+  departureTime: string;
+  arrivalTime: string;
+  status: string;
+  airline: { code: string; name: string };
+  route: {
+    departure: { code: string };
+    arrival: { code: string };
+  };
+  classes: { basePriceVND: number }[];
+};
 
 export function FlightManagement() {
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    apiGet<Flight[]>('/admin/flights')
+      .then((data) => {
+        setFlights(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filtered = flights.filter(f => 
+    f.flightNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.route.departure.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.route.arrival.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center rounded-[32px] border border-dashed border-slate-200 bg-white">
+      <Loader2 className="animate-spin text-brand-600" size={32} />
+    </div>
+  );
 
   return (
     <motion.div 
@@ -69,30 +103,30 @@ export function FlightManagement() {
                </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-               {MOCK_FLIGHTS.map((flight) => (
+               {filtered.map((flight) => (
                  <tr key={flight.id} className="hover:bg-slate-50/30 transition-colors group">
                     <td className="px-8 py-5">
                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-brand-600 text-xs">{flight.number.slice(0,2)}</div>
+                          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-brand-600 text-xs">{flight.airline.code}</div>
                           <div>
-                             <p className="text-sm font-black text-ink">{flight.number}</p>
-                             <p className="text-[10px] font-bold text-slate-400">{flight.airline}</p>
+                             <p className="text-sm font-black text-ink">{flight.flightNumber}</p>
+                             <p className="text-[10px] font-bold text-slate-400">{flight.airline.name}</p>
                           </div>
                        </div>
                     </td>
                     <td className="px-8 py-5">
                        <div className="flex items-center gap-2 font-black text-ink">
-                          <span>{flight.from}</span>
+                          <span>{flight.route.departure.code}</span>
                           <ArrowRight size={14} className="text-slate-300" />
-                          <span>{flight.to}</span>
+                          <span>{flight.route.arrival.code}</span>
                        </div>
                     </td>
                     <td className="px-8 py-5">
-                       <p className="text-sm font-black text-ink">{formatTime(flight.departure)}</p>
-                       <p className="text-[10px] font-bold text-slate-400">{formatDate(flight.departure)}</p>
+                       <p className="text-sm font-black text-ink">{formatTime(flight.departureTime)}</p>
+                       <p className="text-[10px] font-bold text-slate-400">{formatDate(flight.departureTime)}</p>
                     </td>
                     <td className="px-8 py-5">
-                       <p className="text-sm font-black text-brand-600">{currency.format(flight.price)}</p>
+                       <p className="text-sm font-black text-brand-600">{currency.format(Number(flight.classes[0]?.basePriceVND || 0))}</p>
                     </td>
                     <td className="px-8 py-5">
                        <span className={`px-3 py-1 rounded-full text-[10px] font-black border ${flight.status === 'SCHEDULED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
@@ -111,6 +145,13 @@ export function FlightManagement() {
                     </td>
                  </tr>
                ))}
+               {filtered.length === 0 && (
+                 <tr>
+                    <td colSpan={6} className="px-8 py-20 text-center text-slate-400 font-medium">
+                       Không tìm thấy chuyến bay nào.
+                    </td>
+                 </tr>
+               )}
             </tbody>
          </table>
       </div>

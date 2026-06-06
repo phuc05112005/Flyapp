@@ -134,7 +134,7 @@ export default function HomePage() {
                     <span className="text-brand-400">chuyên nghiệp.</span>
                   </h2>
                   <p className="mt-8 text-xl text-slate-400 font-medium leading-relaxed max-w-xl">
-                    Hệ thống quản trị đại lý mạnh mẽ giúp bạn theo dõi đơn hàng, doanh thu và xuất vé tự động chỉ với 1 cú click.
+                    Hệ thống quản trị đại lý mạnh mẽ giúp bạn theo dõi đặt vé, doanh thu và xuất vé tự động chỉ với 1 cú click.
                   </p>
                   <div className="mt-12 flex flex-wrap gap-10">
                      <div className="flex flex-col gap-2">

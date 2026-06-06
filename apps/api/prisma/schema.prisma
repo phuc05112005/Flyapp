@@ -42,12 +42,15 @@ model RefreshToken {
 }
 
 model Airline {
-  id       String   @id @default(cuid())
-  code     String   @unique
-  name     String
-  logo     String?
-  isActive Boolean  @default(true)
-  flights  Flight[]
+  id             String          @id @default(cuid())
+  code           String          @unique
+  name           String
+  logo           String?
+  isActive       Boolean         @default(true)
+  flights        Flight[]
+  extraServices  ExtraService[]
+  baggageOptions BaggageOption[]
+  seatTiers      SeatTier[]
 }
 
 model Airport {
