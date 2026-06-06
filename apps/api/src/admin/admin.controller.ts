@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { AdminService } from './admin.service';
@@ -58,6 +58,11 @@ export class AdminController {
     return this.adminService.recentBookings();
   }
 
+  @Get('flights')
+  flights() {
+    return this.adminService.listFlights();
+  }
+
   @Get('payment-settings')
   paymentSettings() {
     return this.adminService.paymentSettings();
@@ -71,6 +76,16 @@ export class AdminController {
   @Get('staff')
   listStaff() {
     return this.adminService.listStaff();
+  }
+
+  @Get('airlines/:airlineId/services')
+  airlineServices(@Param('airlineId') airlineId: string) {
+    return this.adminService.airlineServices(airlineId);
+  }
+
+  @Get('airlines/:airlineId/baggage')
+  airlineBaggage(@Param('airlineId') airlineId: string) {
+    return this.adminService.airlineBaggage(airlineId);
   }
 
   @Put('staff')

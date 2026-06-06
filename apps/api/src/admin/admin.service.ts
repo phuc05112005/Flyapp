@@ -3,10 +3,14 @@ import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma.service';
 import { toNumber } from '../common/utils/money';
+import { FlightsService } from '../flights/flights.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly flightsService: FlightsService
+  ) {}
 
   private paymentSettingDefaults = {
     bankName: 'Vietcombank',
@@ -49,6 +53,24 @@ export class AdminService {
         payment: true,
         tickets: true
       }
+    });
+  }
+
+  listFlights() {
+    return this.flightsService.findAll();
+  }
+
+  airlineServices(airlineId: string) {
+    return this.prisma.extraService.findMany({
+      where: { airlineId },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  airlineBaggage(airlineId: string) {
+    return this.prisma.baggageOption.findMany({
+      where: { airlineId },
+      orderBy: { weightKg: 'asc' }
     });
   }
 

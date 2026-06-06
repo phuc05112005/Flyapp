@@ -52,8 +52,8 @@ export function StaffManagement() {
       setShowForm(false);
       setForm({ email: '', password: '', fullName: '', phone: '' });
       loadStaff();
-    } catch (error: any) {
-      toast.error(error.message || 'Lỗi khi tạo nhân viên');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Lỗi khi tạo nhân viên');
     } finally {
       setCreating(false);
     }

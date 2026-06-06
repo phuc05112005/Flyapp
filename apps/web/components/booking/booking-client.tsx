@@ -167,7 +167,7 @@ export function BookingClient() {
       }
       setCurrentStep(4);
     } catch (error) {
-      toast.error('Không thể tạo đơn đặt vé.');
+      toast.error('Không thể tạo yêu cầu đặt vé.');
     } finally {
       setLoading(false);
     }
@@ -218,7 +218,7 @@ export function BookingClient() {
                                <label className="text-[10px] font-black uppercase text-slate-400">Giới tính</label>
                                <div className="flex gap-2">
                                   {['MALE', 'FEMALE'].map(g => (
-                                    <button key={g} type="button" onClick={() => updatePassenger(i, { gender: g as any })} className={`flex-1 h-12 rounded-xl border font-bold text-sm transition-all ${p.gender === g ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-400'}`}>
+                                    <button key={g} type="button" onClick={() => updatePassenger(i, { gender: g as 'MALE' | 'FEMALE' })} className={`flex-1 h-12 rounded-xl border font-bold text-sm transition-all ${p.gender === g ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-400'}`}>
                                       {g === 'MALE' ? 'Nam' : 'Nữ'}
                                     </button>
                                   ))}
